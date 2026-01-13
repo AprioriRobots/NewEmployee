@@ -1,0 +1,19 @@
+# Config folder for Pycharm
+.idea/
+
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+
+# env fil
+.env
+
+# ignoring all temp formats .xslx/.docx files
+~$*
+
+# Secret info from employer
+input_samples/*
+output_results/*
