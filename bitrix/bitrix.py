@@ -136,28 +136,8 @@ def get_social_network_lst(token: str, social_network_id: str | int) -> dict | s
         return f'Ошибка во время отправки запроса {e}'
 
 
-def create_work_group(token: str) -> dict | str:
-    url: str = f'https://b24.apriori.rest/rest/api/69/{token}/'
-
-    try:
-        bx24 = Bitrix24(url)
-
-        params = {
-            'NAME': "Тестовая группа, созданная через АПИ",
-            'VISIBLE': 'Y',
-            'OPENED': 'Y',
-            'INITIATE_PERMS': 'K'
-        }
-
-        msg_response = bx24.callMethod('sonet_group.create', params=params)
-        return msg_response
-    except BitrixError as e:
-        return f'Ошибка во время отправки запроса {e}'
-
-
 if __name__ == '__main__':
-    # task_list = get_task_list(token=BITRIX_TOKEN)
+    task_list = get_task_list(token=BITRIX_TOKEN)
     # created_task = add_task(token=BITRIX_TOKEN, creator_id=69, responsible_id=69)
     # network_lst = get_social_network_lst(token=BITRIX_TOKEN, social_network_id=141)
-    created_group = create_work_group(token=BITRIX_TOKEN)
     pass

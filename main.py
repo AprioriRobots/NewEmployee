@@ -24,12 +24,8 @@ INPUT_WORDS: dict = {
 }
 
 
-if __name__ == '__main__':
+def tkrf_sample_updater():
     doc = Document('input_samples/Трудовой договор.docx')
-
-    # Чтение абзацев
-    # for para in doc.paragraphs:
-    #     print(para.text)
 
     paragraph_count: int = len(doc.paragraphs)
     for i in range(paragraph_count):
@@ -77,11 +73,8 @@ if __name__ == '__main__':
             doc.paragraphs[i].text = current_txt.replace('<Дата выплаты зарплаты>',
                                                          INPUT_WORDS['Дата_выплаты_зарплаты'])
 
-
-
-
-
-    # txt_for_update = doc.paragraphs[0].text
-    #
-    # doc.paragraphs[0].text = txt_for_update.replace('<Договор №>', '5553535')
     doc.save('output_results/output_Трудовой договор.docx')
+
+
+if __name__ == '__main__':
+    pass
