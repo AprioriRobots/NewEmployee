@@ -63,9 +63,9 @@ def get_task_list(token: str) -> dict | str:
         'PRIORITY': 'desc'
     }
     filter_ = {
-        '!STATUS': 6,
+        # '!STATUS': 6,
         # '>=DEADLINE': datetime.utcnow().strftime('%Y-%m-%d'),
-        'RESPONSIBLE_ID': 547,
+        # 'RESPONSIBLE_ID': 547,
         '::SUBFILTER-PARAMS': {'FAVORITE': 'Y'}
     }
     select = [
@@ -79,22 +79,20 @@ def get_task_list(token: str) -> dict | str:
         'WITH_RESULT_INFO': True,
         'WITH_PARSED_DESCRIPTION': True
     }
-
-    try:
-        url: str = f'https://b24.apriori.rest/rest/api/69/{token}/'
-        bx24 = Bitrix24(url)
-
-        response = bx24.callMethod(
-            'tasks.task.list',
-            {
+    final_params = {
                 'order': order,
-                'filter': filter_,
+                # 'filter': filter_,
                 'select': select,
                 'params': params
-            },
-            progress_callback=lambda progress: print('Progress:', progress)
-        )
-        items = response.items()
+    }
+
+    try:
+        url: str = f'https://b24.apriori.rest/rest/69/{token}/tasks.task.list'
+
+        # https://corp.tknovosib.ru/rest/717/ipvi7vmargk9d92f/crm.deal.list
+
+        response = requests.post(url=url)
+        items = response.text
         for entity in items:
             print('Entity:', entity)
     except Exception as e:
@@ -121,7 +119,45 @@ def get_task_by_id(token: str, task_id: str | int) -> dict | str:
         return f'Ошибка во время отправки запроса {e}'
 
 
+def get_social_network_lst(token: str, social_network_id: str | int) -> dict | str:
+    url: str = f'https://b24.apriori.rest/rest/api/69/{token}/'
+
+    try:
+        bx24 = Bitrix24(url)
+        params: dict = {
+            'filter': {
+                'ID': social_network_id
+            },
+            'select': ['ID', 'NAME']
+        }
+        msg_response = bx24.callMethod('socialnetwork.api.workgroup.list', params=params)
+        return msg_response
+    except BitrixError as e:
+        return f'Ошибка во время отправки запроса {e}'
+
+
+def create_work_group(token: str) -> dict | str:
+    url: str = f'https://b24.apriori.rest/rest/api/69/{token}/'
+
+    try:
+        bx24 = Bitrix24(url)
+
+        params = {
+            'NAME': "Тестовая группа, созданная через АПИ",
+            'VISIBLE': 'Y',
+            'OPENED': 'Y',
+            'INITIATE_PERMS': 'K'
+        }
+
+        msg_response = bx24.callMethod('sonet_group.create', params=params)
+        return msg_response
+    except BitrixError as e:
+        return f'Ошибка во время отправки запроса {e}'
+
+
 if __name__ == '__main__':
     # task_list = get_task_list(token=BITRIX_TOKEN)
-    created_task = add_task(token=BITRIX_TOKEN, creator_id=69, responsible_id=69)
-
+    # created_task = add_task(token=BITRIX_TOKEN, creator_id=69, responsible_id=69)
+    # network_lst = get_social_network_lst(token=BITRIX_TOKEN, social_network_id=141)
+    created_group = create_work_group(token=BITRIX_TOKEN)
+    pass
