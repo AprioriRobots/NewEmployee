@@ -13,20 +13,53 @@ NDA_INPUT_WORDS: dict = {
     'Адрес_по_прописке': 'г. Москва, ул. Тестова, д. 10, к. 2',
     'Полное_наименование': 'ООО Априори',
     'Краткое_наименование': 'Априори',
-
     'ИНН_организации': '7724438709',
     'ОГРН_организации': '1027739642282',
     'Должность_руководителя': 'Директор',
     'Руководитель': 'Кабанов Кабан Кабанович',
     'Основания_подписи': '(хз че тут)',
-    'Фактический_адрес': 'г. Москва, ул. Тестова, д. 20, к. 1'
+    'Фактический_адрес': 'г. Москва, ул. Тестова, д. 20, к. 1',
+    'Банк_работника': 'Т-Банк',
+    'Адрес_банка_работника': 'Адрес Т-Банка: 127287, Москва, ул. 2-я Хуторская, д. 38А, стр. 26.',
+    'ИНН_банка_работника': '7710140679'
 }
 
 
 def nda_sample_former(input_sample: str, output_result: str) -> str:
     try:
         doc = Document(input_sample)
+
         paragraph_count: int = len(doc.paragraphs)
+        table_count: int = len(doc.tables)
+
+        # Итерируемся по всем таблицам в документе
+        for i in range(table_count):
+            # Итерируемся по каждой строке
+            for row in doc.tables[i].table.rows:
+                current_row = row
+                cell_count_of_current_row: int = len(current_row.cells)
+
+                # Итерируемся по каждой ячейке
+                for j in range(cell_count_of_current_row):
+                    current_cell_txt = current_row.cells[j].text
+
+                    if '<Банк работника>' in current_cell_txt:
+                        update_text = current_cell_txt.replace('<Банк работника>', NDA_INPUT_WORDS['Банк_работника'])
+
+                        current_row.cells[j].text = update_text
+                        current_cell_txt = update_text
+
+                    if '<Адрес банка работника>' in current_cell_txt:
+                        update_text = current_cell_txt.replace('<Адрес банка работника>',
+                                                               NDA_INPUT_WORDS['Адрес_банка_работника'])
+                        current_row.cells[j].text = update_text
+                        current_cell_txt = update_text
+
+                    if '<ИНН банка работника>' in current_cell_txt:
+                        update_text = current_cell_txt.replace('<ИНН банка работника>',
+                                                               NDA_INPUT_WORDS['ИНН_банка_работника'])
+                        current_row.cells[j].text = update_text
+                        current_cell_txt = update_text
 
         for i in range(paragraph_count):
             print(doc.paragraphs[i].text)
