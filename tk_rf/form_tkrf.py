@@ -1,7 +1,7 @@
 from docx import Document
 
 
-INPUT_WORDS: dict = {
+TKRF_INPUT_WORDS: dict = {
     'Договор': '5553535',
     'Дата_приказа_о_приеме': '13.01.2026',
     'Полное_наименование': 'ООО Априори',
@@ -34,45 +34,45 @@ def tkrf_sample_former(input_sample: str, output_result: str) -> str:
             current_txt = doc.paragraphs[i].text
 
             if '<Договор №' in current_txt:
-                doc.paragraphs[i].text = current_txt.replace('<Договор №>', INPUT_WORDS['Договор'])
+                doc.paragraphs[i].text = current_txt.replace('<Договор №>', TKRF_INPUT_WORDS['Договор'])
             elif '<Полное наименование>' in current_txt:
-                doc.paragraphs[i].text = current_txt.replace('<Полное наименование>', INPUT_WORDS['Полное_наименование'])
+                doc.paragraphs[i].text = current_txt.replace('<Полное наименование>', TKRF_INPUT_WORDS['Полное_наименование'])
             elif '<Должность руководителя>' in current_txt:
                 doc.paragraphs[i].text = current_txt.replace('<Должность руководителя>',
-                                                             INPUT_WORDS['Должность_руководителя'])
+                                                             TKRF_INPUT_WORDS['Должность_руководителя'])
             elif '<Руководитель>' in current_txt:
-                doc.paragraphs[i].text = current_txt.replace('<Руководитель>', INPUT_WORDS['Руководитель'])
+                doc.paragraphs[i].text = current_txt.replace('<Руководитель>', TKRF_INPUT_WORDS['Руководитель'])
             elif '<Основания подписи>' in current_txt:
-                doc.paragraphs[i].text = current_txt.replace('<Основания подписи>', INPUT_WORDS['Основания_подписи'])
+                doc.paragraphs[i].text = current_txt.replace('<Основания подписи>', TKRF_INPUT_WORDS['Основания_подписи'])
             elif '<Гражданство страны>' in current_txt:
-                doc.paragraphs[i].text = current_txt.replace('<Гражданство страны>', INPUT_WORDS['Гражданство_страны'])
+                doc.paragraphs[i].text = current_txt.replace('<Гражданство страны>', TKRF_INPUT_WORDS['Гражданство_страны'])
             elif '<Полное имя работника>' in current_txt:
-                doc.paragraphs[i].text = current_txt.replace('<Полное имя работника>', INPUT_WORDS['Полное_имя_работника'])
+                doc.paragraphs[i].text = current_txt.replace('<Полное имя работника>', TKRF_INPUT_WORDS['Полное_имя_работника'])
             elif '<Подразделение>' in current_txt:
-                doc.paragraphs[i].text = current_txt.replace('<Подразделение>', INPUT_WORDS['Подразделение'])
+                doc.paragraphs[i].text = current_txt.replace('<Подразделение>', TKRF_INPUT_WORDS['Подразделение'])
             elif '<Должность работника>' in current_txt:
-                doc.paragraphs[i].text = current_txt.replace('<Должность работника>', INPUT_WORDS['Должность_работника'])
+                doc.paragraphs[i].text = current_txt.replace('<Должность работника>', TKRF_INPUT_WORDS['Должность_работника'])
             elif '<Краткое наименование>' in current_txt:
-                doc.paragraphs[i].text = current_txt.replace('<Краткое наименование>', INPUT_WORDS['Краткое_наименование'])
+                doc.paragraphs[i].text = current_txt.replace('<Краткое наименование>', TKRF_INPUT_WORDS['Краткое_наименование'])
             elif '<Дата приема>' in current_txt:
-                doc.paragraphs[i].text = current_txt.replace('<Дата приема>', INPUT_WORDS['Дата_приема'])
+                doc.paragraphs[i].text = current_txt.replace('<Дата приема>', TKRF_INPUT_WORDS['Дата_приема'])
             elif '<Испытательный срок>' in current_txt:
-                doc.paragraphs[i].text = current_txt.replace('<Испытательный срок>', INPUT_WORDS['Испытательный_срок'])
+                doc.paragraphs[i].text = current_txt.replace('<Испытательный срок>', TKRF_INPUT_WORDS['Испытательный_срок'])
             elif '<График работы>' in current_txt:
-                doc.paragraphs[i].text = current_txt.replace('<График работы>', INPUT_WORDS['График_работы'])
+                doc.paragraphs[i].text = current_txt.replace('<График работы>', TKRF_INPUT_WORDS['График_работы'])
             elif '<Длительность рабочей недели>' in current_txt:
                 doc.paragraphs[i].text = current_txt.replace('<Длительность рабочей недели>',
-                                                             INPUT_WORDS['Длительность_рабочей_недели'])
+                                                             TKRF_INPUT_WORDS['Длительность_рабочей_недели'])
             elif '<Количество дней ежегодного отпуска>' in current_txt:
                 doc.paragraphs[i].text = current_txt.replace('<Количество дней ежегодного отпуска>',
-                                                             INPUT_WORDS['Количество_дней_ежегодного_отпуска'])
+                                                             TKRF_INPUT_WORDS['Количество_дней_ежегодного_отпуска'])
             elif '<Оклад>' in current_txt:
-                doc.paragraphs[i].text = current_txt.replace('<Оклад>', INPUT_WORDS['Оклад'])
+                doc.paragraphs[i].text = current_txt.replace('<Оклад>', TKRF_INPUT_WORDS['Оклад'])
             elif '<Дата выплаты аванса>' in current_txt:
-                doc.paragraphs[i].text = current_txt.replace('<Дата выплаты аванса>', INPUT_WORDS['Дата_выплаты_аванса'])
+                doc.paragraphs[i].text = current_txt.replace('<Дата выплаты аванса>', TKRF_INPUT_WORDS['Дата_выплаты_аванса'])
             elif '<Дата выплаты зарплаты>' in current_txt:
                 doc.paragraphs[i].text = current_txt.replace('<Дата выплаты зарплаты>',
-                                                             INPUT_WORDS['Дата_выплаты_зарплаты'])
+                                                             TKRF_INPUT_WORDS['Дата_выплаты_зарплаты'])
 
         doc.save(output_result)
         return f'Файл успешно сформирован. Сохранен в {output_result}'

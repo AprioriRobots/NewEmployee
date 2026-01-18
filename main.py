@@ -25,9 +25,12 @@ INPUT_WORDS: dict = {
 
 
 def tkrf_sample_updater():
-    doc = Document('input_samples/Трудовой договор.docx')
-
+    doc = Document('input_sample/Трудовой договор.docx')
     paragraph_count: int = len(doc.paragraphs)
+
+    for table in doc.tables:
+        print(table)
+
     for i in range(paragraph_count):
         print(doc.paragraphs[i].text)
         current_txt = doc.paragraphs[i].text
@@ -73,7 +76,7 @@ def tkrf_sample_updater():
             doc.paragraphs[i].text = current_txt.replace('<Дата выплаты зарплаты>',
                                                          INPUT_WORDS['Дата_выплаты_зарплаты'])
 
-    doc.save('output_results/output_Трудовой договор.docx')
+    doc.save('output_result/output_Трудовой договор.docx')
 
 
 if __name__ == '__main__':

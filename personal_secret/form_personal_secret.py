@@ -178,4 +178,8 @@ if __name__ == '__main__':
         input_sample='input_sample/Согласие на распространение персональных данных НОВОЕ.docx',
         output_result='output_result/output_Согласие на распространение персональных данных НОВОЕ.docx'
     )
-    pass
+
+    result_2: str = personal_secret_sample_former(
+        input_sample='input_sample/Согласие на обработку персональных данных НОВОЕ.docx',
+        output_result='output_result/output_Согласие на обработку персональных данных НОВОЕ.docx'
+    )
