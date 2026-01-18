@@ -46,7 +46,6 @@ def mat_resp_sample_former(input_sample: str, output_result: str) -> str:
                 # Итерируемся по каждой ячейке
                 for j in range(cell_count_of_current_row):
                     current_cell_txt = current_row.cells[j].text
-                    print(current_cell_txt)
 
                     if '<Дата приказа о приеме>' in current_cell_txt:
                         update_text = current_cell_txt.replace('<Дата приказа о приеме>',
@@ -179,6 +178,70 @@ def mat_resp_sample_former(input_sample: str, output_result: str) -> str:
                                                                MAT_RESP_INPUT_WORDS['<Полное имя работника>'])
                         current_row.cells[j].text = update_text
                         current_cell_txt = update_text
+
+        for i in range(paragraph_count):
+            current_txt = doc.paragraphs[i].text
+            print(current_txt)
+
+            if '<Полное наименование>' in current_txt:
+                updated_text = current_txt.replace('<Полное наименование>',
+                                                   MAT_RESP_INPUT_WORDS['<Полное наименование>'])
+                doc.paragraphs[i].text = updated_text
+                current_txt = updated_text
+
+            if '<Краткое наименование>' in current_txt:
+                updated_text = current_txt.replace('<Краткое наименование>',
+                                                   MAT_RESP_INPUT_WORDS['<Краткое наименование>'])
+                doc.paragraphs[i].text = updated_text
+                current_txt = updated_text
+
+            if '<Должность руководителя>' in current_txt:
+                updated_text = current_txt.replace('<Должность руководителя>',
+                                                   MAT_RESP_INPUT_WORDS['<Должность руководителя>'])
+                doc.paragraphs[i].text = updated_text
+                current_txt = updated_text
+
+            if '<Руководитель>' in current_txt:
+                updated_text = current_txt.replace('<Руководитель>',
+                                                   MAT_RESP_INPUT_WORDS['<Руководитель>'])
+                doc.paragraphs[i].text = updated_text
+                current_txt = updated_text
+
+            if '<Основание подписи>' in current_txt:
+                updated_text = current_txt.replace('<Основание подписи>',
+                                                   MAT_RESP_INPUT_WORDS['<Основание подписи>'])
+                doc.paragraphs[i].text = updated_text
+                current_txt = updated_text
+
+            if '<Гражданство страны>' in current_txt:
+                updated_text = current_txt.replace('<Гражданство страны>',
+                                                   MAT_RESP_INPUT_WORDS['<Гражданство страны>'])
+                doc.paragraphs[i].text = updated_text
+                current_txt = updated_text
+
+            if '<Гражданство страны>' in current_txt:
+                updated_text = current_txt.replace('<Гражданство страны>',
+                                                   MAT_RESP_INPUT_WORDS['<Гражданство страны>'])
+                doc.paragraphs[i].text = updated_text
+                current_txt = updated_text
+
+            if '<Полное имя работника>' in current_txt:
+                updated_text = current_txt.replace('<Полное имя работника>',
+                                                   MAT_RESP_INPUT_WORDS['<Полное имя работника>'])
+                doc.paragraphs[i].text = updated_text
+                current_txt = updated_text
+
+            if '<Должность работника>' in current_txt:
+                updated_text = current_txt.replace('<Должность работника>',
+                                                   MAT_RESP_INPUT_WORDS['<Должность работника>'])
+                doc.paragraphs[i].text = updated_text
+                current_txt = updated_text
+
+            if '<Дата приказа о приеме>' in current_txt:
+                updated_text = current_txt.replace('<Дата приказа о приеме>',
+                                                   MAT_RESP_INPUT_WORDS['Дата_приказа_о_приеме'])
+                doc.paragraphs[i].text = updated_text
+                current_txt = updated_text
 
         doc.save(output_result)
     except Exception as e:
