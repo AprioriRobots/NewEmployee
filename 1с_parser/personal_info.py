@@ -3,8 +3,6 @@ import datetime
 
 
 def personal_info(connector: win32com.client, fio: str) -> dict:
-    query = connector.NewObject("Запрос")
-
     parsed_pers_info = {
         'ФИО': '',
         'ДатаРождения': '',
@@ -12,6 +10,8 @@ def personal_info(connector: win32com.client, fio: str) -> dict:
         'МестоРождения': '',
         'СНИЛС': ''
     }
+
+    query = connector.NewObject("Запрос")
     query.Text = """
         ВЫБРАТЬ
             Сотрудники.ФизическоеЛицо.ФИО КАК ФИО,
@@ -48,30 +48,55 @@ def personal_info(connector: win32com.client, fio: str) -> dict:
 
 
 def document_info(connector: win32com.client, fio: str) -> dict:
-    query = connector.NewObject("Запрос")
-
     parsed_doc_info: dict = {
-        'Документ': '',
+        'ВидДокумента': '',
+        'Серия': '',
+        'Номер': '',
+        'ДатаВыдачи': '',
+        'КемВыдан': '',
+        'КодПодразделения': ''
     }
+
+    query = connector.NewObject("Запрос")
     query.Text = """
-           ВЫБРАТЬ
-                ДокументыФизЛиц.Представление как Документ
-           ИЗ
-               РегистрСведений.ДокументыФизическихЛиц КАК ДокументыФизЛиц
-           ГДЕ
-               ДокументыФизЛиц.ФизЛицо.ФИО= &ФИО
-           """
+                   ВЫБРАТЬ
+                       ДокументыФизЛиц.ВидДокумента.Наименование как ВидДокумента,
+                       ДокументыФизЛиц.Серия как Серия,
+                       ДокументыФизЛиц.Номер как Номер,
+                       ДокументыФизЛиц.ДатаВыдачи как ДатаВыдачи,
+                       ДокументыФизЛиц.КемВыдан как КемВыдан,
+                       ДокументыФизЛиц.КодПодразделения как КодПодразделения
+                   ИЗ
+                       РегистрСведений.ДокументыФизическихЛиц КАК ДокументыФизЛиц
+                   ГДЕ
+                       ДокументыФизЛиц.ФизЛицо.ФИО= &ФИО
+                   """
 
     query.SetParameter("ФИО", fio)
     selection = query.Execute().Choose()
 
     while selection.Next():
+        doc_date = selection.ДатаВыдачи
+        formatted_doc_date = doc_date.strftime('%d.%m.%Y')
+
         # print(
-        #     f"Паспортные данные: {selection.Документ}"
+        #     f"Вид документа: {selection.ВидДокумента}, Серия: {selection.Серия}, Номер: {selection.Номер},"
+        #     f" Дата выдачи: {selection.ДатаВыдачи}, Кем выдан: {selection.КемВыдан},"
+        #     f" Код подразделения: {selection.КодПодразделения}"
         # )
-        parsed_doc_info['Документ'] = selection.Документ
+
+        parsed_doc_info['ВидДокумента'] = selection.ВидДокумента
+        parsed_doc_info['Серия'] = selection.Серия
+        parsed_doc_info['Номер'] = selection.Номер
+        parsed_doc_info['ДатаВыдачи'] = formatted_doc_date
+        parsed_doc_info['КемВыдан'] = selection.КемВыдан
+        parsed_doc_info['КодПодразделения'] = selection.КодПодразделения
 
     return parsed_doc_info
+
+def contact_info(connector: win32com.client, fio: str) -> dict
+    pass
+
 
 
 if __name__ == '__main__':
@@ -89,3 +114,22 @@ if __name__ == '__main__':
     #
     # print(personal_info, document_info, sep='\n')
 
+    query = V83.NewObject("Запрос")
+    query.Text = """
+               ВЫБРАТЬ
+                   ФизическиеЛица.
+               ИЗ
+                   Справочник.ФизическиеЛица КАК ФизическиеЛица
+               ГДЕ
+                   ДокументыФизЛиц.ФизЛицо.ФИО= &ФИО
+               """
+
+    query.SetParameter("ФИО", 'Федотов Сергей Сергеевич')
+    selection = query.Execute().Choose()
+
+    while selection.Next():
+        print(
+            f"Вид документа: {selection.ВидДокумента}, Серия: {selection.Серия}, Номер: {selection.Номер},"
+            f" Дата выдачи: {selection.ДатаВыдачи}, Кем выдан: {selection.КемВыдан},"
+            f" Код подразделения: {selection.КодПодразделения}"
+        )
