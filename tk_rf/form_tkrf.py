@@ -21,6 +21,22 @@ TKRF_INPUT_WORDS: dict = {
     'Оклад': '35 000',
     'Дата_выплаты_аванса': '12',
     'Дата_выплаты_зарплаты': '24',
+
+    '<Юридический адрес>': '1',
+    '<Фактический адрес>': '2',
+    '<ИНН организации>': '3',
+    '<КПП организации>': '4',
+    '<ОГРН организации>': '5',
+    '<Расчетный счет организации>': '6',
+    '<БИК банка организации>': '7',
+    '<Корреспондентский счет организации>': '8',
+    '<Дата рождения>': '9',
+    '<Место рождения>': '10',
+    '<Серия документа, удостоверяющего личность>': '11',
+    '<Номер документа, удостоверяющего личность>': '13',
+    '<Орган, выдавший документ, удостоверяющего личность>': '14',
+    '<Дата выдачи документа, удостоверяющего личность>': '15',
+    '<СНИЛС>': '16'
 }
 
 
@@ -29,6 +45,19 @@ def tkrf_sample_former(input_sample: str, output_result: str) -> str:
         doc = Document(input_sample)
 
         paragraph_count: int = len(doc.paragraphs)
+        table_count: int = len(doc.tables)
+
+        for i in range(table_count):
+            # Итерируемся по каждой строке
+            for row in doc.tables[i].table.rows:
+                current_row = row
+                cell_count_of_current_row: int = len(current_row.cells)
+
+                # Итерируемся по каждой ячейке
+                for j in range(cell_count_of_current_row):
+                    current_cell_txt = current_row.cells[j].text
+                    pass
+
         for i in range(paragraph_count):
             print(doc.paragraphs[i].text)
             current_txt = doc.paragraphs[i].text
@@ -81,4 +110,6 @@ def tkrf_sample_former(input_sample: str, output_result: str) -> str:
 
 
 if __name__ == '__main__':
+    result = tkrf_sample_former(input_sample='input_sample/Трудовой договор.docx',
+                                output_result='output_result/output_Трудовой договор.docx')
     pass

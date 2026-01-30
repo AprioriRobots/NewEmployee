@@ -94,9 +94,9 @@ def document_info(connector: win32com.client, fio: str) -> dict:
 
     return parsed_doc_info
 
-def contact_info(connector: win32com.client, fio: str) -> dict
-    pass
 
+def contact_info(connector: win32com.client, fio: str) -> dict:
+    pass
 
 
 if __name__ == '__main__':
@@ -133,3 +133,4 @@ if __name__ == '__main__':
             f" Дата выдачи: {selection.ДатаВыдачи}, Кем выдан: {selection.КемВыдан},"
             f" Код подразделения: {selection.КодПодразделения}"
         )
+    # Пример СНИЛС'А 145-434-285 57
