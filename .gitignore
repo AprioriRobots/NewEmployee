@@ -15,5 +15,16 @@ __pycache__/
 ~$*
 
 # Secret info from employer
-input_samples/*
-output_results/*
+tk_rf/output_result/*
+
+nda/output_result/*
+
+zp_alignment/output_result/*
+
+lna/output_result/*
+
+personal_secret/output_result/*
+
+mat_response/output_result/*
+
+formul_tkrf/output_result/*
