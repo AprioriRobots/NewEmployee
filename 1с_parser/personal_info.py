@@ -100,7 +100,7 @@ def contact_info(connector: win32com.client, fio: str) -> dict:
 
 
 if __name__ == '__main__':
-    V83_CONN_STRING = r'File="C:\Users\serge\OneDrive\Документы\1C\DemoHRMBase6";Usr="Администратор";'
+    V83_CONN_STRING = r'Srvr="srv2024.apriori.loc:1541";Ref="zup_bazilevskii";Usr="Робот";Pwd="YUSliot3Cb";'
 
     try:
         V83 = win32com.client.Dispatch("V83.COMConnector").Connect(V83_CONN_STRING)
@@ -109,28 +109,31 @@ if __name__ == '__main__':
 
     V83 = win32com.client.Dispatch("V83.COMConnector").Connect(V83_CONN_STRING)
 
-    # personal_info: dict = personal_info(connector=V83, fio='Федотов Сергей Сергеевич')
-    # document_info: dict = document_info(connector=V83, fio='Федотов Сергей Сергеевич')
+    personal_info: dict = personal_info(connector=V83, fio='Абдимамат кызы Айжаркын')
+    document_info: dict = document_info(connector=V83, fio='Абдимамат кызы Айжаркын')
+
+    print(personal_info, document_info, sep='\n')
+
+
+    # query = V83.NewObject("Запрос")
+    # query.Text = """
+    #            ВЫБРАТЬ
+    #                Справочник.ФизическиеЛица.Наименование КАК ФИО,
+    #                Справочник.ФизическиеЛица.ИНН КАК ИНН,
+    #                СтраховойНомерПФР
+    #            ИЗ
+    #                Справочник.ФизическиеЛица КАК ФизическиеЛица
+    #            ГДЕ
+    #                ФизическиеЛица.Наименование = &ФИО
+    #            """
     #
-    # print(personal_info, document_info, sep='\n')
-
-    query = V83.NewObject("Запрос")
-    query.Text = """
-               ВЫБРАТЬ
-                   ФизическиеЛица.
-               ИЗ
-                   Справочник.ФизическиеЛица КАК ФизическиеЛица
-               ГДЕ
-                   ДокументыФизЛиц.ФизЛицо.ФИО= &ФИО
-               """
-
-    query.SetParameter("ФИО", 'Федотов Сергей Сергеевич')
-    selection = query.Execute().Choose()
-
-    while selection.Next():
-        print(
-            f"Вид документа: {selection.ВидДокумента}, Серия: {selection.Серия}, Номер: {selection.Номер},"
-            f" Дата выдачи: {selection.ДатаВыдачи}, Кем выдан: {selection.КемВыдан},"
-            f" Код подразделения: {selection.КодПодразделения}"
-        )
+    # query.SetParameter("ФИО", 'Абдимамат кызы Айжаркын')
+    # selection = query.Execute().Choose()
+    #
+    # while selection.Next():
+    #     print(
+    #         f"Вид документа: {selection.ВидДокумента}, Серия: {selection.Серия}, Номер: {selection.Номер},"
+    #         f" Дата выдачи: {selection.ДатаВыдачи}, Кем выдан: {selection.КемВыдан},"
+    #         f" Код подразделения: {selection.КодПодразделения}"
+    #     )
     # Пример СНИЛС'А 145-434-285 57
