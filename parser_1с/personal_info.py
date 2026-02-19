@@ -5,6 +5,7 @@ import datetime
 def personal_info(connector: win32com.client, fio: str) -> dict:
     parsed_pers_info = {
         'ФИО': '',
+        'ПОЛ': '',
         'ДатаРождения': '',
         'ИНН': '',
         'Страна': '',
@@ -14,6 +15,25 @@ def personal_info(connector: win32com.client, fio: str) -> dict:
         'Адрес_проживания': '',
         'Телефон': '',
         'Банк': '',
+
+        'Родственники': {
+            'Фамилия': '',
+            'Имя': '',
+            'Отчество': '',
+            'ДатаРождения': '',
+            'СтепеньРодства': ''
+        },
+
+        'Образование': {
+            'УчебноеЗаведение': '',
+            'ВидОбразования': '',
+            'Квалификация': '',
+            'Специальность': '',
+            'ПериодОбучения': '',
+            'Серия': '',
+            'Номер': '',
+        },
+
         'АдресБанка': '',
         'ИннБанка': '',
         'НомерСчета': '',
@@ -25,7 +45,8 @@ def personal_info(connector: win32com.client, fio: str) -> dict:
     query = connector.NewObject("Запрос")
     query.Text = """
         ВЫБРАТЬ
-            Сотрудники.ФизическоеЛицо.ФИО КАК ФИО,
+             Сотрудники.ФизическоеЛицо.ФИО КАК ФИО,
+             Сотрудники.ФизическоеЛицо.Пол КАК Пол,
              Сотрудники.ФизическоеЛицо.ДатаРождения КАК ДатаРождения,
              Сотрудники.ФизическоеЛицо.ИНН КАК ИНН,
              Сотрудники.ФизическоеЛицо.МестоРождения КАК МестоРождения,
@@ -41,37 +62,19 @@ def personal_info(connector: win32com.client, fio: str) -> dict:
     selection = query.Execute().Choose()
 
     while selection.Next():
+        gender = selection.Пол
+        gender_str = connector.String(gender)
+
         birth_date = selection.ДатаРождения
         formatted_date = birth_date.strftime('%d.%m.%Y')
 
         parsed_pers_info['ФИО'] = selection.ФИО
         parsed_pers_info['ДатаРождения'] = formatted_date
+        parsed_pers_info['ПОЛ'] = gender_str
         parsed_pers_info['ИНН'] = selection.ИНН
         parsed_pers_info['МестоРождения'] = selection.МестоРождения
         parsed_pers_info['СНИЛС'] = selection.СНИЛС
 
-        employee_ras_schet, employee_bik_bank = '', ''
-        employee_core_schet = ''
-
-        table_len_fiz_extra_req: int = len(selection.ФизЛицо.ДополнительныеРеквизиты)
-
-        if len(selection.ФизЛицо.ДополнительныеРеквизиты):
-            table_len: int = len(selection.ФизЛицо.ДополнительныеРеквизиты)
-
-            for i in range(table_len):
-                extra_req_value = selection.ФизЛицо.ДополнительныеРеквизиты[i].Свойство.Наименование
-
-                if extra_req_value == 'Расчетный счет':
-                    employee_ras_schet = selection.ФизЛицо.ДополнительныеРеквизиты[i].Значение
-
-                if extra_req_value == 'БИК банка':
-                    employee_bik_bank = selection.ФизЛицо.ДополнительныеРеквизиты[i].Значение
-
-                if extra_req_value == 'Корр счет':
-                    employee_core_schet = selection.ФизЛицо.ДополнительныеРеквизиты[i].Значение
-
-        parsed_pers_info['КоррСчет'] = employee_core_schet
-        parsed_pers_info['РасчетныйСчет'] = employee_ras_schet
 
     query_2 = connector.NewObject("Запрос")
     query_2.Text = """
@@ -102,9 +105,7 @@ def personal_info(connector: win32com.client, fio: str) -> dict:
             for i in range(table_len):
 
                 if len(selection_2.ФизЛицо.КонтактнаяИнформация[i].НомерТелефона):
-
                     if entry_telephone == 0:
-
                         phone_number = selection_2.ФизЛицо.КонтактнаяИнформация[i].НомерТелефона
                         entry_telephone += 1
 
@@ -155,6 +156,72 @@ def personal_info(connector: win32com.client, fio: str) -> dict:
         bank_bik: str = bank_info.split(',')[0]
 
         parsed_pers_info['БикБанка'] = bank_bik
+
+
+    query_4 = connector.NewObject("Запрос")
+    query_4.Text = """
+           ВЫБРАТЬ
+               Родственники.Фамилия КАК Фамилия,
+               Родственники.Имя КАК Имя,
+               Родственники.Отчество КАК Отчество,
+               Родственники.ДатаРождения КАК ДатаРождения,
+               Родственники.СтепеньРодства.Наименование КАК СтепеньРодства 
+           ИЗ
+               Справочник.РодственникиФизическихЛиц КАК Родственники
+           ГДЕ
+               Родственники.Владелец.ФИО = &ФИО
+    """
+
+    query_4.SetParameter("ФИО", fio)
+    selection_4 = query_4.Execute().Choose()
+
+    while selection_4.Next():
+        parsed_pers_info['Родственники']['Фамилия'] = selection_4.Фамилия
+        parsed_pers_info['Родственники']['Имя'] = selection_4.Имя
+        parsed_pers_info['Родственники']['Отчество'] = selection_4.Отчество
+
+        relative_birth_date = selection_4.ДатаРождения
+        formatted_date = relative_birth_date.strftime('%d.%m.%Y')
+
+        parsed_pers_info['Родственники']['ДатаРождения'] = formatted_date
+        parsed_pers_info['Родственники']['СтепеньРодства'] = selection_4.СтепеньРодства
+
+
+    query_5 = connector.NewObject("Запрос")
+    query_5.Text = """
+               ВЫБРАТЬ
+                   Образование.УчебноеЗаведение.Наименование КАК УчебноеЗаведение,
+                   Образование.ВидОбразования.Наименование КАК ВидОбразования,
+                   Образование.Квалификация КАК Квалификация,
+                   Образование.Специальность.Наименование КАК Специальность,
+                   Образование.Серия КАК Серия,
+                   Образование.Номер КАК Номер,
+                   Образование.Начало КАК Начало,
+                   Образование.Окончание КАК Окончание
+               ИЗ
+                   Справочник.ОбразованиеФизическихЛиц КАК Образование
+               ГДЕ
+                   Образование.Владелец.ФИО = &ФИО
+        """
+
+    query_5.SetParameter("ФИО", fio)
+    selection_5 = query_5.Execute().Choose()
+
+    while selection_5.Next():
+        parsed_pers_info['Образование']['УчебноеЗаведение'] = selection_5.УчебноеЗаведение
+        parsed_pers_info['Образование']['ВидОбразования'] = selection_5.ВидОбразования
+        parsed_pers_info['Образование']['Квалификация'] = selection_5.Квалификация
+        parsed_pers_info['Образование']['Специальность'] = selection_5.Специальность
+        parsed_pers_info['Образование']['Серия'] = selection_5.Серия
+        parsed_pers_info['Образование']['Номер'] = selection_5.Номер
+
+        start_date = selection_5.Начало
+        formatted_start_date = start_date.strftime('%d.%m.%Y')
+
+        end_date = selection_5.Окончание
+        formatted_end_date = end_date.strftime('%d.%m.%Y')
+
+        parsed_pers_info['Образование']['ПериодОбучения'] = f'с {formatted_start_date} по {formatted_end_date}'
 
     return parsed_pers_info
 
@@ -217,8 +284,6 @@ def job_info(connector: win32com.client, fio: str) -> dict:
                            ПриемНаРаботу.Сотрудник = &ФИО
                        """
 
-    # ПриемНаРаботу.ВидЗанятости как ВидЗанятости,
-
     query.SetParameter("ФИО", needed_employee)
     selection = query.Execute().Choose()
 
@@ -265,40 +330,16 @@ def job_info(connector: win32com.client, fio: str) -> dict:
                             or len(selection.Организация.КонтактнаяИнформация[i].Регион)):
 
                         if entry_address == 0:
-
                             reg_address = selection.Организация.КонтактнаяИнформация[i].Представление
                             fact_address = selection.Организация.КонтактнаяИнформация[i + 1].Представление
 
                             entry_address += 1
-
-        org_ras_schet, org_bik_bank = '', ''
-        org_core_schet = ''
-
-        if len(selection.Организация.ДополнительныеРеквизиты):
-            table_len: int = len(selection.Организация.ДополнительныеРеквизиты)
-
-            for i in range(table_len):
-                extra_req_value = selection.Организация.ДополнительныеРеквизиты[i].Свойство.Наименование
-
-                if extra_req_value == 'Расчетный счет':
-                    org_ras_schet = selection.Организация.ДополнительныеРеквизиты[i].Значение
-
-                if extra_req_value == 'БИК банка':
-                    org_bik_bank = selection.Организация.ДополнительныеРеквизиты[i].Значение
-
-                if extra_req_value == 'Корр счет':
-                    org_core_schet = selection.Организация.ДополнительныеРеквизиты[i].Значение
 
         # Пытался по аналогии проитерироваться по selection.Отпуск - возникает ошибка
 
         parsed_job_info['Организация']['ЮридическийАдрес'] = reg_address
         parsed_job_info['Организация']['ФактическийАдрес'] = fact_address
         parsed_job_info['Организация']['Телефон'] = phone_number
-
-        parsed_job_info['Организация']['БикБанка'] = org_bik_bank
-        parsed_job_info['Организация']['РасСчет'] = org_ras_schet
-        parsed_job_info['Организация']['КорСчет'] = org_core_schet
-
 
         # vac_days: int | float = selection.ЕжегодныеОтпуска.КоличествоДнейВГод
 
@@ -329,14 +370,14 @@ def job_info(connector: win32com.client, fio: str) -> dict:
 
     query_2 = connector.NewObject("Запрос")
     query_2.Text = """
-                                   ВЫБРАТЬ
-                                       ЗарплатаКадры.ДатаВыплатыАвансаНеПозжеЧем как АвансПериод,
-                                       ЗарплатаКадры.ДатаВыплатыЗарплатыНеПозжеЧем как ЗарплатаПериод
-                                   ИЗ
-                                       РегистрСведений.НастройкиЗарплатаКадрыРасширенная КАК ЗарплатаКадры
-                                   ГДЕ
-                                       ЗарплатаКадры.Организация = &Организация
-                                   """
+           ВЫБРАТЬ
+               ЗарплатаКадры.ДатаВыплатыАвансаНеПозжеЧем как АвансПериод,
+               ЗарплатаКадры.ДатаВыплатыЗарплатыНеПозжеЧем как ЗарплатаПериод
+           ИЗ
+               РегистрСведений.НастройкиЗарплатаКадрыРасширенная КАК ЗарплатаКадры
+           ГДЕ
+               ЗарплатаКадры.Организация = &Организация
+    """
 
     query_2.SetParameter("Организация", selection.Организация)
     selection_2 = query_2.Execute().Choose()
@@ -425,6 +466,76 @@ def document_info(connector: win32com.client, fio: str) -> dict:
     return parsed_doc_info
 
 
+def military_info(connector: win32com.client, fio: str, boss_fio: str, boss_position: str, org_name: str) -> dict:
+    parsed_military_info: dict = {
+        'ВУС': '',
+        'Военкомат': '',
+        'АдресВоенкомата': '',
+        'КатегорияЗапаса': '',
+        'ВоинскоеЗвание': '',
+        'СоставПрофиль': '',
+        'Годность': '',
+
+        'ИнициалыИмениОтчестваОтветственногоЗаВУ': '',
+        'ДолжностьОтветственногоЗаВУ': '',
+        'ФамилияОтветсвтенногоЗаВУ': ''
+    }
+
+    query = connector.NewObject("Запрос")
+    query.Text = """
+                      ВЫБРАТЬ
+                          ВоинскийУчет.ВУС КАК ВУС,
+                          ВоинскийУчет.Военкомат.Наименование КАК Военкомат,
+                          ВоинскийУчет.Военкомат.Адрес КАК АдресВоенкомата,
+                          ВоинскийУчет.КатегорияЗапаса.Ссылка КАК КатегорияЗапаса,
+                          ВоинскийУчет.Звание.Наименование КАК ВоинскоеЗвание,
+                          ВоинскийУчет.Состав.Наименование КАК СоставПрофиль,
+                          ВоинскийУчет.Годность КАК Годность                      
+    
+                      ИЗ
+                          РегистрСведений.ВоинскийУчет КАК ВоинскийУчет
+                      ГДЕ
+                          ВоинскийУчет.ФизическоеЛицо.ФИО = &ФИО
+                      """
+
+    query.SetParameter("ФИО", fio)
+    selection = query.Execute().Choose()
+
+    while selection.Next():
+        parsed_military_info['ВУС'] = selection.ВУС
+        parsed_military_info['Военкомат'] = selection.Военкомат
+        parsed_military_info['АдресВоенкомата'] = selection.АдресВоенкомата
+        parsed_military_info['КатегорияЗапаса'] = connector.String(selection.КатегорияЗапаса)
+        parsed_military_info['ВоинскоеЗвание'] = selection.ВоинскоеЗвание
+        parsed_military_info['СоставПрофиль'] = selection.СоставПрофиль
+        parsed_military_info['Годность'] = connector.String(selection.Годность)
+
+        parsed_military_info['ИнициалыИмениОтчестваОтветственногоЗаВУ'] = f'{boss_fio.split(' ')[1][0]} {boss_fio.split(' ')[2][0]}'
+        parsed_military_info['ДолжностьОтветственногоЗаВУ'] = boss_position
+        parsed_military_info['ФамилияОтветсвтенногоЗаВУ'] = boss_fio.split(' ')[0]
+
+    # query_2 = connector.NewObject("Запрос")
+    # query_2.Text = """
+    #                       ВЫБРАТЬ
+    #                           ОснованияПолномочийОтветственныхЛиц.Должность.Наименование КАК Должность,
+    #                           ОснованияПолномочийОтветственныхЛиц.ФизическоеЛицо.Наименование КАК ФИО
+    #                       ИЗ
+    #                           РегистрСведений.ОснованияПолномочийОтветственныхЛиц КАК ОснованияПолномочийОтветственныхЛиц
+    #                       ГДЕ
+    #                           ОснованияПолномочийОтветственныхЛиц.Организация.НаименованиеСокращенное = &НаименованиеКомпании
+    # """
+    #
+    # query_2.SetParameter("НаименованиеКомпании", org_name)
+    # selection_2 = query_2.Execute().Choose()
+    #
+    # while selection_2.Next():
+    #     boss_fio_2 = selection_2.ФИО
+    #     boss_position_2 = selection_2.Должность
+
+
+    return parsed_military_info
+
+
 def app_1c(fio: str, base_1c: str, username: str, pswd: str) -> dict:
     V83_CONN_STRING = rf'{base_1c}Usr="{username}";Pwd="{pswd}";'
 
@@ -438,16 +549,21 @@ def app_1c(fio: str, base_1c: str, username: str, pswd: str) -> dict:
     personal: dict = personal_info(connector=V83, fio=fio)
     document: dict = document_info(connector=V83, fio=fio)
     job: dict = job_info(connector=V83, fio=fio)
+    military: dict = military_info(connector=V83, fio=fio,
+                                   boss_fio=job['Организация']['Руководитель'],
+                                   boss_position=job['Организация']['ДолжностьРуководителя'],
+                                   org_name=job['Организация']['НаименованиеСокращенное'])
 
     parsed_data_from_1c: dict = {
         'personal_info': personal,
         'document_info': document,
-        'job_info': job
+        'job_info': job,
+        'military_info': military
     }
     return parsed_data_from_1c
 
 
 if __name__ == '__main__':
-    parsed_data: dict = app_1c(fio='Молоканов Константин Владимирович', base_1c='Srvr="srv2024.apriori.loc:1541";Ref="zup_poezd";',
+    parsed_data: dict = app_1c(fio='Ошкин Виктор Иванович', base_1c='Srvr="srv2024.apriori.loc:1541";Ref="zup_poezd";',
                                username='Робот', pswd='YUSliot3Cb')
     pass
