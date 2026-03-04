@@ -138,66 +138,6 @@ def get_social_network_lst(token: str, social_network_id: str | int) -> dict | s
         return f'Ошибка во время отправки запроса {e}'
 
 
-# def get_crm_list(token: str) -> dict | str:
-#
-#
-#     order = {
-#         'DEADLINE': 'asc',
-#         'PRIORITY': 'desc'
-#     }
-#     filter_ = {
-#         # '!STATUS': 6,
-#         # '>=DEADLINE': datetime.utcnow().strftime('%Y-%m-%d'),
-#         # 'RESPONSIBLE_ID': 547,
-#         '::SUBFILTER-PARAMS': {'FAVORITE': 'Y'}
-#     }
-#     select = [
-#         'ID', 'TITLE', 'DESCRIPTION', 'STATUS', 'subStatus',
-#         'DEADLINE', 'CREATED_DATE', 'RESPONSIBLE_ID',
-#         'ACCOMPLICES', 'AUDITORS', 'TAGS', 'COUNTERS',
-#         'PRIORITY', 'MARK'
-#     ]
-#     params = {
-#         'WITH_TIMER_INFO': True,
-#         'WITH_RESULT_INFO': True,
-#         'WITH_PARSED_DESCRIPTION': True
-#     }
-#     final_params = {
-#                 'order': order,
-#                 # 'filter': filter_,
-#                 # 'select': select,
-#                 'params': params
-#     }
-#
-#     try:
-#         url: str = f'https://b24.apriori.rest/rest/69/{token}/crm.item.list'
-#
-#         response = requests.post(url=url)
-#         items = response.text
-#         for entity in items:
-#             print('Entity:', entity)
-#     except Exception as e:
-#         print('Request failed:', e)
-
-
-
-# def get_current_deal(toke: str, id_deal: str | int) -> dict | str:
-#     url: str = f'https://b24.apriori.rest/rest/api/69/{token}/'
-#
-#     try:
-#         bx24 = Bitrix24(url)
-#         params: dict = {
-#             'filter': {
-#                 'ID': social_network_id
-#             },
-#         }
-#         msg_response = bx24.callMethod('crm.deal.get', params=params)
-#         return msg_response
-#     except BitrixError as e:
-#         return f'Ошибка во время отправки запроса {e}'
-#     pass
-
-
 def crm_type_lst(token: str, method: str):
     # crm.type.list
     url = f"https://b24.apriori.rest/rest/69/{token}/{method}"
@@ -223,7 +163,7 @@ def get_deals_bitrix(token: str, entityTypeId, method) -> list:
 
     filtered_items = []
     for item in items['result']['items']:
-        if item['stageId'] == 'DT1042_5:UC_II89PK':
+        if item['stageId'] == 'DT1042_5:UC_B608AW':
             filtered_items.append(item)
     return filtered_items
 
@@ -303,13 +243,6 @@ def add_comments_deal(token: str, entity_id: int | str):
 def add_file_to_smart_process(token: str, entity_id: int | str, entity_type_id: int | str, encrypted_files: list) -> str:
     url: str = f'https://b24.apriori.rest/rest/69/{token}/crm.item.update'
 
-    # with open(
-    #         r'C:\Users\apriori_ii2\PycharmProjects\AprioriNewEmployee\nda\output_result\output_Обязательство о неразглашении коммерческой тайны.docx',
-    #         'rb') as f:
-    #     file_content = f.read()
-    # # кодируем в base64, получаем строку без префикса и переноса строк
-    # file_content_b64 = base64.b64encode(file_content).decode('utf-8')
-
     try:
         params: dict = {
             'entityTypeId': int(entity_type_id),
@@ -326,8 +259,129 @@ def add_file_to_smart_process(token: str, entity_id: int | str, entity_type_id: 
         return f'Ошибка во время отправки запроса {e}'
 
 
+def get_all_companies() -> list | None:
+    webhook_url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/crm.company.list'
+
+    # 'UF_CRM_1771251801387' - имя базы ЗУП, 'UF_CRM_1771251320632' - почты email_hr
+
+    params = {
+        'select': ["UF_CRM_1771251801387", "UF_CRM_1771251320632", 'UF_CRM_1772109198124', 'ASSIGNED_BY_ID', 'TITLE']
+    }
+
+    response = requests.post(webhook_url, json=params)
+
+    if response.status_code == 200:
+        result = response.json()
+
+        if 'result' in result:
+            return result['result']
+
+    print('Error:', response.content)
+    return None
+
+
+def get_inn_bitrix(company_id: int) -> list[dict] | str:
+    url = f"https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/crm.requisite.list"
+
+    payload = json.dumps({
+        "filter": {
+        "entityTypeId": 4,
+        "ENTITY_ID": company_id
+    }})
+    headers = {
+        'Content-Type': 'application/json'
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+    return response.json()['result'][0]['RQ_INN']
+
+
+def get_folder_from_disk(token: str, folder_id: int, method: str) -> list[dict] | str:
+    url: str = f'https://b24.apriori.rest/rest/69/{token}/'
+    try:
+        bx24 = Bitrix24(url)
+
+        params = {
+            "id": folder_id
+        }
+
+        disk_response = bx24.callMethod(method, params=params)
+        return disk_response
+    except BitrixError as e:
+        return f'Ошибка во время отправки запроса {e}'
+
+
+def get_file_from_disk(token: str, file_id: int) -> dict | str:
+    url: str = f'https://b24.apriori.rest/rest/69/{token}/'
+    try:
+        bx24 = Bitrix24(url)
+
+        params = {
+            "id": int(file_id)
+        }
+
+        disk_response = bx24.callMethod('disk.folder.get', params=params)
+        return disk_response
+    except BitrixError as e:
+        return f'Ошибка во время отправки запроса {e}'
+
+
+def get_root_folders(token: str) -> list[dict] | str:
+    # disk.storage.getlist
+
+    url: str = f'https://b24.apriori.rest/rest/69/{token}/'
+    try:
+        bx24 = Bitrix24(url)
+
+
+        disk_response = bx24.callMethod('disk.storage.getlist')
+
+        for el in disk_response:
+            if el['NAME'] == 'Априори':
+
+                return el
+    except BitrixError as e:
+        return f'Ошибка во время отправки запроса {e}'
+
+
+def save_file_from_url(url: str, path_to_save, filename: str) -> str:
+    response = requests.get(url, stream=True)
+
+    if response.status_code == 200:
+        with open(f'{path_to_save}/{filename}', 'wb') as f:
+            for chunk in response.iter_content(1024):
+                f.write(chunk)
+
+        return f'{path_to_save}/{filename}'
+    else:
+        return f'Ошибка во время скачивания файла: {response.status_code}'
+
+
+
+def get_token_report_file() -> str | None:
+    bitrix_folder: list[dict] | str = get_folder_from_disk(token=BITRIX_TOKEN, folder_id=193,       # 193 - папка "Общее"
+                                                           method='disk.folder.getchildren')
+
+    for item in bitrix_folder:
+        if item['NAME'].lower() == 'токены отчетность.xlsx':
+            url_file: str | int = item['DOWNLOAD_URL']
+            downloaded_file: str = save_file_from_url(url=url_file,
+                                                      path_to_save='extension_ecp/report_tokens', filename=item['NAME'])
+            return downloaded_file
+
+    return None
+
+
 
 if __name__ == '__main__':
+    # root_folders = get_root_folders(token=BITRIX_TOKEN)
+
+    toke_rep_file = get_token_report_file()
+
+    # folder = get_folder_from_disk(token=BITRIX_TOKEN, folder_id=193,
+    #                      method='disk.folder.getchildren')
+
+
     get_type_lst = crm_type_lst(token=BITRIX_TOKEN, method='crm.type.list')
 
     bitrix_deals: list[dict] | str = get_deals_bitrix(token=BITRIX_TOKEN, entityTypeId=1042,
