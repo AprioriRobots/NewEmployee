@@ -29,25 +29,27 @@ def make_error_msg(token: str, chat_id: str | int, msg: str) -> int | str:
         return f'Ошибка во время отправки запроса {e}'
 
 
-def add_task(token: str, creator_id: int | str, responsible_id: int | str) -> dict | str:
-    url: str = f'https://b24.apriori.rest/rest/api/69/{token}/'
+def add_task(creator_id: int | str, responsible_id: int | str, number: int) -> dict | str:
+    url = f'https://b24.apriori.rest/rest/api/69/{BITRIX_TOKEN}/tasks.task.add'
 
-    try:
-        bx24 = Bitrix24(url)
+    params: dict = {
+      "fields": {
+            "title": f"Тестовая задача {number} на продление ЭЦП",
+            "responsibleId": responsible_id,
+            "creatorId": creator_id
+          }
+    }
 
-        params = {
-            "fields": {
-                'TITLE': 'Тестовая заявка на формирование ТК РФ',
-                'DEADLINE': '2026-01-31T23:59:59+02:00',
-                'CREATED_BY': creator_id,
-                'RESPONSIBLE_ID': responsible_id,
-            }
-        }
+    response = requests.post(url, json=params)
 
-        msg_response = bx24.callMethod('tasks.task.add', params=params)
-        return msg_response
-    except BitrixError as e:
-        return f'Ошибка во время отправки запроса {e}'
+    if response.status_code == 200:
+        data = response.json()
+        if 'result' in data:
+            return data['result']['item']
+        else:
+            return f"Ошибка в ответе API: {data}"
+    else:
+        return f"HTTP ошибка: {response.status_code}, сообщение: {response.text}"
 
 
 def get_task_list(token: str) -> dict | str:
@@ -168,11 +170,11 @@ def get_deals_bitrix(token: str, entityTypeId, method) -> list:
     return filtered_items
 
 
-def upload_file(token, file_path, filename, folder_id: int | str):
+def upload_file(file_path, filename, folder_id: int | str):
     """
     Загрузка файла в Битрикс24
     """
-    webhook_url = f'https://b24.apriori.rest/rest/69/{token}/'
+    webhook_url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/'
     with open(file_path, 'rb') as file:
         files = {'file': (filename, file, 'application/octet-stream')}
         response = requests.post(
@@ -206,7 +208,7 @@ def upload_to_uploadurl(upload_url, field_name, file_path):
 
 def update_bitrix_file(file_path: str, folder_id: int | str, filename: str) -> str:
 
-    uploaded_url = upload_file(token=BITRIX_TOKEN, file_path=file_path, filename=filename, folder_id=folder_id)
+    uploaded_url = upload_file(file_path=file_path, filename=filename, folder_id=folder_id)
     uploaded_file = upload_to_uploadurl(upload_url=uploaded_url, field_name='file', file_path=file_path)
     return f'Загрузили обновленную версию файла {filename} в битрикс24-диск. Статус ответа: \n{uploaded_file}!'
 
@@ -372,26 +374,74 @@ def get_token_report_file() -> str | None:
     return None
 
 
+def attach_file_to_task(task_id: int | str, file_id: int | str) -> dict | str:
+    url: str = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/'
+    try:
+        bx24 = Bitrix24(url)
+
+        params: dict = {
+            "taskId": task_id,
+            "fileId": file_id
+        }
+
+        disk_response = bx24.callMethod('tasks.task.files.attach', params=params)
+        return disk_response
+    except BitrixError as e:
+        return f'Ошибка во время отправки запроса {e}'
+
+
+
+    # url = f'https://b24.apriori.rest/rest/api/69/{BITRIX_TOKEN}/tasks.task.files.attach'
+    #
+    # params: dict = {
+    #     "taskId": task_id,
+    #     "fileId": file_id
+    # }
+    #
+    # response = requests.post(url, json=params)
+    #
+    # if response.status_code == 200:
+    #     data = response.json()
+    #     if 'result' in data:
+    #         return data['result']['item']
+    #     else:
+    #         return f"Ошибка в ответе API: {data}"
+    # else:
+    #     return f"HTTP ошибка: {response.status_code}, сообщение: {response.text}"
+
+
+
 
 if __name__ == '__main__':
+    created_task: dict | str = add_task(creator_id=69, responsible_id=69)
+    task_id = created_task['id']
+    task_id = 1309
+
+    uploaded_url_act = upload_file(file_path='../extension_ecp/output_result/output_Пример акта.docx', filename='output_Пример акта.docx', folder_id=24342)
+    uploaded_file_act = upload_to_uploadurl(upload_url=uploaded_url_act, field_name='file', file_path='../extension_ecp/output_result/output_Пример акта.docx')
+    uploaded_file_id_act = uploaded_file_act['result']['ID']
+
+    attached_file_act = attach_file_to_task(task_id=task_id, file_id=uploaded_file_id_act)
+    pass
+
     # root_folders = get_root_folders(token=BITRIX_TOKEN)
 
-    toke_rep_file = get_token_report_file()
+    # toke_rep_file = get_token_report_file()           24342 id папки "ПРОДЛЕНИЕ ЭЦП (тест)"
 
     # folder = get_folder_from_disk(token=BITRIX_TOKEN, folder_id=193,
     #                      method='disk.folder.getchildren')
-
-
-    get_type_lst = crm_type_lst(token=BITRIX_TOKEN, method='crm.type.list')
-
-    bitrix_deals: list[dict] | str = get_deals_bitrix(token=BITRIX_TOKEN, entityTypeId=1042,
-                                                      method='crm.item.list')
-    needed_deal = ''
-
-    for deal in bitrix_deals:
-        if deal['title'] == 'Приём на работу #88':
-            needed_deal = deal
-
-    file_id = 16235
-    add_file =  add_file_to_smart_process(token=BITRIX_TOKEN, entity_id=needed_deal['id'], entity_type_id=1042,
-                                          file_id=file_id)
+    #
+    #
+    # get_type_lst = crm_type_lst(token=BITRIX_TOKEN, method='crm.type.list')
+    #
+    # bitrix_deals: list[dict] | str = get_deals_bitrix(token=BITRIX_TOKEN, entityTypeId=1042,
+    #                                                   method='crm.item.list')
+    # needed_deal = ''
+    #
+    # for deal in bitrix_deals:
+    #     if deal['title'] == 'Приём на работу #88':
+    #         needed_deal = deal
+    #
+    # file_id = 16235
+    # add_file =  add_file_to_smart_process(token=BITRIX_TOKEN, entity_id=needed_deal['id'], entity_type_id=1042,
+    #                                       file_id=file_id)
