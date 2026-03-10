@@ -52,6 +52,8 @@ def form_ecp_invoice(input_sample: str, output_result: str, parsed_data_1c: dict
         doc = Document(input_sample)
         docx_replace(doc, '<>', **invoice_input_words)
 
+        doc.save(output_result)
+
         pdf_output_result = output_result.replace('docx', 'pdf')
         convert(output_result, pdf_output_result)
 
