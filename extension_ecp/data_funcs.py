@@ -5,7 +5,7 @@ from openpyxl import load_workbook
 
 
 
-def row_extracter_if_red(df: pd.DataFrame, path_to_file: str) -> list[dict]:
+def extract_row_if_red(df: pd.DataFrame, path_to_file: str) -> list[dict]:
     extracted_rows: list[dict] = []
 
     wb = load_workbook(path_to_file)
@@ -19,8 +19,6 @@ def row_extracter_if_red(df: pd.DataFrame, path_to_file: str) -> list[dict]:
     # Для фильтра
     today = datetime.today()
     today = today.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    extracted_rows: list[dict] = []
 
     for idx, row in df.iterrows():
         is_add = False
@@ -45,10 +43,13 @@ def row_extracter_if_red(df: pd.DataFrame, path_to_file: str) -> list[dict]:
 
 
         if isinstance(ecp_date_value, datetime):
-            if patent_value <= today + timedelta(days=15):
+            if ecp_date_value <= today + timedelta(days=15):
                 data_row['ИНН'] = inn_value
                 data_row['Наименование'] = company_name_value
-                data_row['ДатаОкончанияЭЦП'] = extracted_rows
+
+                formatted_ecp_date_value = ecp_date_value.strftime('%d.%m.%Y')
+
+                data_row['ДатаОкончанияЭЦП'] = formatted_ecp_date_value
 
                 extracted_rows.append(data_row)
 
@@ -63,13 +64,10 @@ def app_data_extracter(path_file: str) -> list[dict]:
     filtered_df = filtered_df[filtered_df['Дата окончания ЭЦП'].notna()]
 
     # Получаем извлеченные данные по критериям ТЗ
-    extracted_data: list[dict] = row_extracter_if_red(df=filtered_df, path_to_file=path_file)
+    extracted_data: list[dict] = extract_row_if_red(df=filtered_df, path_to_file=path_file)
 
-    # Сегрегация по фирмам извлеченные строки
-    segregation_data: list[dict] = data_segregation(extracted_rows=extracted_data)
-    return segregation_data
-
+    return extracted_data
 
 
 if __name__ == '__main__':
-    pass
+    extracted_data: list[dict] = app_data_extracter(path_file='report_tokens/ТОКЕНЫ ОТЧЕТНОСТЬ.xlsx')
