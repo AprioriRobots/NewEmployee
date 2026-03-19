@@ -7,8 +7,9 @@ from bitrix.bitrix import get_all_companies, get_inn_bitrix
 from parser_1с.personal_info import only_org_info
 
 
-def form_ecp_act(input_sample: str, output_result: str, parsed_data_1c: dict) -> str:
+def form_ecp_act(input_sample: str, output_result: str, parsed_data_1c: dict, reqs_bank_main_org: dict) -> str:
     act_input_words: dict = {
+        'Порядковый номер': parsed_data_1c['org_info']['НомерДокумента'],
         'Рабочая дата': parsed_data_1c['org_info']['РабочаяДата'],
         'Краткое наименование': parsed_data_1c['org_info']['НаименованиеСокращенное'],
         'ИНН организации': parsed_data_1c['org_info']['ИНН_Орг'],
@@ -18,7 +19,12 @@ def form_ecp_act(input_sample: str, output_result: str, parsed_data_1c: dict) ->
         'БИК банка организации': parsed_data_1c['org_info']['БикБанка'],
         'Корреспондентский счет организации': parsed_data_1c['org_info']['КорСчет'],
         'Должность руководителя': parsed_data_1c['org_info']['ДолжностьРуководителя'],
-        'Руководитель': parsed_data_1c['org_info']['Руководитель']
+        'Руководитель': parsed_data_1c['org_info']['Руководитель'],
+
+        'ИНН исполнителя': reqs_bank_main_org['ИНН_исполнителя'],
+        'Расчетный счёт исполнителя': reqs_bank_main_org['Рас_счёт_исполнителя'],
+        'БИК банка исполнителя': reqs_bank_main_org['БИК_банка_исполнителя'],
+        'Корреспондентский счет исполнителя': reqs_bank_main_org['Корр_счет_исполнителя']
     }
 
     try:
@@ -36,8 +42,9 @@ def form_ecp_act(input_sample: str, output_result: str, parsed_data_1c: dict) ->
         return f'Ошибка во время формирования файла: {e}'
 
 
-def form_ecp_invoice(input_sample: str, output_result: str, parsed_data_1c: dict) -> str:
+def form_ecp_invoice(input_sample: str, output_result: str, parsed_data_1c: dict, reqs_bank_main_org: dict) -> str:
     invoice_input_words: dict = {
+        'Порядковый номер': parsed_data_1c['org_info']['НомерДокумента'],
         'Рабочая дата': parsed_data_1c['org_info']['РабочаяДата'],
         'Краткое наименование': parsed_data_1c['org_info']['НаименованиеСокращенное'],
         'ИНН организации': parsed_data_1c['org_info']['ИНН_Орг'],
@@ -45,7 +52,12 @@ def form_ecp_invoice(input_sample: str, output_result: str, parsed_data_1c: dict
         'Юридический адрес': parsed_data_1c['org_info']['ЮридическийАдрес'],
         'Расчетный счёт организации': parsed_data_1c['org_info']['РасСчет'],
         'БИК банка организации': parsed_data_1c['org_info']['БикБанка'],
-        'Корреспондентский счет организации': parsed_data_1c['org_info']['КорСчет']
+        'Корреспондентский счет организации': parsed_data_1c['org_info']['КорСчет'],
+
+        'ИНН исполнителя': reqs_bank_main_org['ИНН_исполнителя'],
+        'Расчетный счёт исполнителя': reqs_bank_main_org['Рас_счёт_исполнителя'],
+        'БИК банка исполнителя': reqs_bank_main_org['БИК_банка_исполнителя'],
+        'Корреспондентский счет исполнителя': reqs_bank_main_org['Корр_счет_исполнителя']
     }
 
     try:

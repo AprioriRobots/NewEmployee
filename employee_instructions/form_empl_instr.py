@@ -18,14 +18,10 @@ def morph_word(word: str, morph_type: str) -> str:
     param_gent = []
     for w in param_words:
 
-        # Слова в кавычках не склоняем
+        # Слова в кавычках не склоняем, еще morphy3 неправильно склоняет слово 'ответственностью' в данном контексте
         if "\"" in w or '\'' in w  or '«' in w or '»' in w or 'ответственностью' == w:
             param_gent.append(w)
             continue
-
-        # if 'ответственностью' == w:
-        #     param_gent.append(w)
-        #     continue
 
         parsed = morph.parse(w)[0]
         inflected = parsed.inflect({morph_type})

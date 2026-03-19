@@ -510,7 +510,7 @@ def military_info(connector: win32com.client, fio: str, boss_fio: str, boss_posi
         parsed_military_info['СоставПрофиль'] = selection.СоставПрофиль
         parsed_military_info['Годность'] = connector.String(selection.Годность)
 
-        parsed_military_info['ИнициалыИмениОтчестваОтветственногоЗаВУ'] = f'{boss_fio.split(' ')[1][0]} {boss_fio.split(' ')[2][0]}'
+        parsed_military_info['ИнициалыИмениОтчестваОтветственногоЗаВУ'] = f"{boss_fio.split(' ')[1][0]} {boss_fio.split(' ')[2][0]}"
         parsed_military_info['ДолжностьОтветственногоЗаВУ'] = boss_position
         parsed_military_info['ФамилияОтветсвтенногоЗаВУ'] = boss_fio.split(' ')[0]
 
@@ -536,15 +536,111 @@ def military_info(connector: win32com.client, fio: str, boss_fio: str, boss_posi
     return parsed_military_info
 
 
-def app_1c(fio: str, base_1c: str, username: str, pswd: str) -> dict:
-    V83_CONN_STRING = rf'{base_1c}Usr="{username}";Pwd="{pswd}";'
+def organisation_info(connector: win32com.client, inn_org: str) -> dict:
+    org_info: dict = {
+            'РабочаяДата': '',              # Есть
+            'Руководитель': '',             # Есть
+            'ДолжностьРуководителя': '',    # Есть
+            'НаименованиеПолное': '',       # Есть
+            'НаименованиеСокращенное': '',  # Есть
+            'ИНН_Орг': '',                  # Есть
+            'ОГРН(ИП)': '',                 # Есть
+            'КПП_Орг': '',                  # Есть
+            'ЮридическийАдрес': '',         # Есть
+            'ФактическийАдрес': '',         # Есть
+            'Телефон': '',                  # Есть
+            'БикБанка': '',                 # Есть
+            'РасСчет': '',                  # Есть
+            'КорСчет': ''                   # Есть
+    }
 
+    query = connector.NewObject("Запрос")
+    query.Text = """
+           ВЫБРАТЬ
+               ПриемНаРаботу.Организация как Организация,
+               ПриемНаРаботу.Руководитель как Руководитель,
+               ПриемНаРаботу.ДолжностьРуководителя как ДолжностьРуководителя,
+               ПриемНаРаботу.ДатаПриема как ДатаПриема
+           ИЗ
+               Документ.ПриемНаРаботу КАК ПриемНаРаботу
+           ГДЕ
+               ПриемНаРаботу.Организация.ИНН = &ИНН
+    """
+
+    query.SetParameter("ИНН", inn_org)
+    selection = query.Execute().Choose()
+
+    while selection.Next():
+        org_info['НаименованиеПолное'] = selection.Организация.НаименованиеПолное
+        org_info['НаименованиеСокращенное'] = selection.Организация.НаименованиеСокращенное
+        org_info['Руководитель'] = selection.Руководитель.Наименование
+        org_info['ДолжностьРуководителя'] = selection.ДолжностьРуководителя.Наименование
+        org_info['ИНН_Орг'] = selection.Организация.ИНН
+        org_info['ОГРН(ИП)'] = selection.Организация.ОГРН
+        org_info['КПП_Орг'] = selection.Организация.РегистрацияВНалоговомОргане.КПП
+
+        reg_address, fact_address = '', ''
+        phone_number = ''
+
+        entry_address: int = 0
+        entry_telephone: int = 0
+
+        if len(selection.Организация.КонтактнаяИнформация):
+            table_len: int = len(selection.Организация.КонтактнаяИнформация)
+
+            for i in range(table_len):
+
+                if len(selection.Организация.КонтактнаяИнформация[i].НомерТелефона):
+                    if entry_telephone == 0:
+                        phone_number = selection.Организация.КонтактнаяИнформация[i].НомерТелефона
+                        entry_telephone += 1
+
+                if (len(selection.Организация.КонтактнаяИнформация[i].Страна)
+                        or len(selection.Организация.КонтактнаяИнформация[i].Регион)):
+
+                    if entry_address == 0:
+                        reg_address = selection.Организация.КонтактнаяИнформация[i].Представление
+                        fact_address = selection.Организация.КонтактнаяИнформация[i + 1].Представление
+
+                        entry_address += 1
+
+        org_info['ЮридическийАдрес'] = reg_address
+        org_info['ФактическийАдрес'] = fact_address
+        org_info['Телефон'] = phone_number
+
+        if len(selection.Организация.ДополнительныеРеквизиты):
+            table_len: int = len(selection.Организация.ДополнительныеРеквизиты)
+
+            for i in range(table_len):
+                value = selection.Организация.ДополнительныеРеквизиты[i].Значение
+                col_name = selection.Организация.ДополнительныеРеквизиты[i].Свойство.Заголовок
+
+                if col_name == 'Расчетный счет':
+                    org_info['РасСчет'] = value
+
+                if col_name == 'БИК банка':
+                    org_info['БикБанка'] = value
+
+                if col_name == 'Корр счет':
+                    org_info['КорСчет'] = value
+
+
+        today = datetime.datetime.today()
+
+        today_str = today.strftime("%d.%m.%Y")
+        org_info['РабочаяДата'] = today_str
+        break
+
+    return org_info
+
+
+def app_1c(fio: str, base_1c: str, username: str, pswd: str) -> dict | str:
+    V83_CONN_STRING = rf'{base_1c}Usr="{username}";Pwd="{pswd}";'
+    print(V83_CONN_STRING)
     try:
         V83 = win32com.client.Dispatch("V83.COMConnector").Connect(V83_CONN_STRING)
     except Exception as e:
-        print(f"Ошибка соединения к базе 1с: {e}")
-
-    V83 = win32com.client.Dispatch("V83.COMConnector").Connect(V83_CONN_STRING)
+        return f"Ошибка соединения к базе 1С: {e}"
 
     personal: dict = personal_info(connector=V83, fio=fio)
     document: dict = document_info(connector=V83, fio=fio)
@@ -563,7 +659,23 @@ def app_1c(fio: str, base_1c: str, username: str, pswd: str) -> dict:
     return parsed_data_from_1c
 
 
+def only_org_info(inn_org: str, base_1c: str, username: str, pswd: str) -> dict | str:
+    V83_CONN_STRING = rf'{base_1c}Usr="{username}";Pwd="{pswd}";'
+
+    try:
+        V83 = win32com.client.Dispatch("V83.COMConnector").Connect(V83_CONN_STRING)
+    except Exception as e:
+        return f"Ошибка соединения к базе 1С: {e}"
+
+    org_info: dict = organisation_info(connector=V83, inn_org=inn_org)
+
+    parsed_data_org_1c: dict = {
+        'org_info': org_info
+    }
+    return parsed_data_org_1c
+
+
 if __name__ == '__main__':
-    parsed_data: dict = app_1c(fio='Ошкин Виктор Иванович', base_1c='Srvr="srv2024.apriori.loc:1541";Ref="zup_poezd";',
+    parsed_data: dict = app_1c(fio='Минин Павел Сергеевич', base_1c='Srvr="srv2024.apriori.loc:1541";Ref="zup_poezd";',
                                username='Робот', pswd='YUSliot3Cb')
     pass

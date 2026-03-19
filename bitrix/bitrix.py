@@ -32,32 +32,52 @@ def make_error_msg(token: str, chat_id: str | int, msg: str) -> int | str:
 
 def add_task(creator_id: int | str, responsible_id: int | str, title: str, description: str, company_name: str,
              contains_results: bool = True, contains_gantt_links: bool = True) -> dict | str:
-    url = f'https://b24.apriori.rest/rest/api/69/{BITRIX_TOKEN}/tasks.task.add'
+    url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/'
 
-    # responsible_id = 60
-    params: dict = {
-      "fields": {
-            "title": title,
-            "responsibleId": responsible_id,
-            "creatorId": creator_id,
-            "groupId": 236,
-            "description": description,
-            "containsResults": contains_results,
-            "containsGanttLinks": contains_gantt_links,
-            # "ufauto494863223278": company_name
-          }
-    }
+    try:
+        bx24 = Bitrix24(url)
 
-    response = requests.post(url, json=params)
+        params: dict = {
+            "fields": {
+                "TITLE": title,
+                "RESPONSIBLE_ID": responsible_id,
+                "CREATED_BY": creator_id,
+                "GROUP_ID": 141,
+                "DESCRIPTION": description,
+                "DESCRIPTION_IN_BBCODE": "N",
+                "TASK_CONTROL": "N"
+            }
+        }
 
-    if response.status_code == 200:
-        data = response.json()
-        if 'result' in data:
-            return data['result']['item']
-        else:
-            return f"Ошибка в ответе API: {data}"
-    else:
-        return f"HTTP ошибка: {response.status_code}, сообщение: {response.text}"
+        if contains_results:
+            params["fields"]["UF_TASK_WEBDAV_FILES"] = []
+
+        return bx24.callMethod('tasks.task.add', params=params)
+    except BitrixError as e:
+        return f'Ошибка во время отправки запроса {e}'
+
+def add_checklist_item(task_id: int | str, title: str, sort_index: int | None = None,
+                       is_complete: str = 'N') -> dict | str:
+    url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/'
+
+    try:
+        bx24 = Bitrix24(url)
+
+        fields: dict = {
+            "TITLE": title,
+            "IS_COMPLETE": is_complete
+        }
+        if sort_index is not None:
+            fields["SORT_INDEX"] = sort_index
+
+        params: dict = {
+            "taskId": int(task_id),
+            "fields": fields
+        }
+
+        return bx24.callMethod('tasks.task.checklist.add', params=params)
+    except BitrixError as e:
+        return f'Ошибка во время отправки запроса {e}'
 
 
 def update_task(task_id: int, company_name: str) -> dict | str:
@@ -154,14 +174,13 @@ def get_task_list(token: str) -> dict | str:
 
 
 def get_task_by_id(task_id: str | int) -> dict | str:
-
     webhook_url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/tasks.task.get'
 
 
     params = {
         'taskId': task_id,
         'select': [
-            'UF_AUTO_494863223278'
+            'UF_AUTO_494863223278'                                                                          # 'UF_AUTO_494863223278'
         ]
     }
     response = requests.post(webhook_url, json=params)
@@ -170,14 +189,13 @@ def get_task_by_id(task_id: str | int) -> dict | str:
         result = response.json()
 
         if 'result' in result:
-            return result['result']
+            return result['result']['task']
 
     else:
         return f"HTTP ошибка: {response.status_code}, сообщение: {response.text}"
 
 
 def get_uf_tasks() -> dict | str:
-
     webhook_url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/tasks.task.getFields'
 
     response = requests.post(webhook_url)
@@ -245,19 +263,23 @@ def upload_file(file_path, filename, folder_id: int | str):
     """
     Загрузка файла в Битрикс24
     """
-    webhook_url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/'
+    webhook_url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/disk.folder.uploadfile'
     with open(file_path, 'rb') as file:
-        files = {'file': (filename, file, 'application/octet-stream')}
-        response = requests.post(
-            webhook_url + "disk.folder.uploadfile",
-            files=files,
-            data={'id': folder_id}  # ID папки
-        )
+        file_content_b64 = base64.b64encode(file.read()).decode('utf-8')
+
+    payload = {
+        'id': int(folder_id),
+        'data': {
+            'NAME': filename
+        },
+        'fileContent': [filename, file_content_b64]
+    }
+    response = requests.post(webhook_url, json=payload)
     if response.status_code == 200:
         result = response.json()
         if result.get('result'):
-            upload_url = result['result']['uploadUrl']
-            return upload_url
+            return result['result']
+    print(f"Ошибка загрузки в диск Битрикс: {response.status_code}, {response.text}")
     return None
 
 
@@ -355,7 +377,7 @@ def get_all_companies() -> list | None:
     return None
 
 
-def get_inn_bitrix(company_id: int) -> list[dict] | str:
+def get_inn_bitrix(company_id: int) -> str:
     url = f"https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/crm.requisite.list"
 
     payload = json.dumps({
@@ -369,6 +391,31 @@ def get_inn_bitrix(company_id: int) -> list[dict] | str:
 
     response = requests.request("POST", url, headers=headers, data=payload)
     return response.json()['result'][0]['RQ_INN']
+
+
+def get_req_id(company_id: int) -> str:
+    # Почти та же самая функция, что и get_inn_bitrix, только получаем id банковсокго реквизита
+    url = f"https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/crm.requisite.list"
+
+    payload = json.dumps({
+        "filter": {
+        "entityTypeId": 4,
+        "ENTITY_ID": company_id
+    }})
+    headers = {
+        'Content-Type': 'application/json'
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+    return response.json()['result'][0]['ID']
+
+def get_req_link_list():
+    url = f"https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/crm.requisite.link.list"
+
+
+    response = requests.request("POST", url)
+    answer = response.json()
+    return answer
 
 
 # crm.company.get
@@ -488,37 +535,143 @@ def attach_file_to_task(task_id: int | str, file_id: int | str) -> dict | str:
         return f'Ошибка во время отправки запроса {e}'
 
 
+def upload_and_attach_file_to_task(task_id: int | str, file_path: str, folder_id: int | str) -> dict | str:
+    original_filename = os.path.basename(file_path).replace('output_', '')
+    filename = f"task_{task_id}_{original_filename}"
+    uploaded_file = upload_file(file_path=file_path, filename=filename, folder_id=folder_id)
 
-    # url = f'https://b24.apriori.rest/rest/api/69/{BITRIX_TOKEN}/tasks.task.files.attach'
-    #
-    # params: dict = {
-    #     "taskId": task_id,
-    #     "fileId": file_id
-    # }
-    #
-    # response = requests.post(url, json=params)
-    #
-    # if response.status_code == 200:
-    #     data = response.json()
-    #     if 'result' in data:
-    #         return data['result']['item']
-    #     else:
-    #         return f"Ошибка в ответе API: {data}"
-    # else:
-    #     return f"HTTP ошибка: {response.status_code}, сообщение: {response.text}"
+    if not uploaded_file or 'ID' not in uploaded_file:
+        return f'Не удалось загрузить файл {filename} в диск Битрикс'
+
+    return attach_file_to_task(task_id=task_id, file_id=uploaded_file['ID'])
+
+
+def add_checklist_item(task_id: int | str, title: str, sort_index: int | None = None,
+                       is_complete: str = 'N') -> dict | str:
+    webhook_url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/task.checklistitem.add.json'
+
+    params: dict = {
+        "TASKID": int(task_id),
+        "FIELDS": {
+            "TITLE": title
+        }
+    }
+    if is_complete in ('Y', 'N'):
+        params["FIELDS"]["IS_COMPLETE"] = is_complete
+    if sort_index is not None:
+        params["FIELDS"]["SORT_INDEX"] = sort_index
+
+    response = requests.post(webhook_url, json=params)
+
+    if response.status_code == 200:
+        data = response.json()
+        if 'result' in data:
+            return data['result']
+        return f"Ошибка в ответе API: {data}"
+    return f"HTTP ошибка: {response.status_code}, сообщение: {response.text}"
+
+
+def get_uf_lst() -> dict | str:
+    # user.userfield.list
+    webhook_url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/crm.deal.userfield.list'
+
+    response = requests.post(webhook_url)
+
+    if response.status_code == 200:
+        result = response.json()
+
+        if 'result' in result:
+            return result['result']
+
+    else:
+        return f"HTTP ошибка: {response.status_code}, сообщение: {response.text}"
+
+
+def get_bank_req(req_id: int | str) -> dict | str | None:
+    # crm.requisite.bankdetail.list
+    webhook_url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/crm.requisite.bankdetail.list'
+
+    response = requests.post(webhook_url)
+
+    if response.status_code == 200:
+        result = response.json()
+
+        if 'result' in result:
+            req_lst = result['result']
+
+            for req in req_lst:
+                if req['ID'] == int(req_id) or req['ID'] == str(req_id):
+                    return req
+
+         # return result['result']
+        return None
+    else:
+        return f"HTTP ошибка: {response.status_code}, сообщение: {response.text}"
+
+
+def company_info(company_id: int):
+    # crm.company.get
+    webhook_url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/crm.company.get'
+
+    params: dict = {
+        "id": company_id
+    }
+
+    response = requests.post(webhook_url, json=params)
+
+    if response.status_code == 200:
+        result = response.json()
+
+        if 'result' in result:
+            return result['result']
+
+    else:
+        return f"HTTP ошибка: {response.status_code}, сообщение: {response.text}"
+
+
+
+def get_contractors_reqs() -> dict:
+    req_data: dict = {
+        'ИНН_исполнителя': '',
+        'Рас_счёт_исполнителя': '',
+        'БИК_банка_исполнителя': '',
+        'Корр_счет_исполнителя': ''
+    }
+    company_lst = get_all_companies()
+
+    for company in company_lst:
+        if company['ID'] == '21' or company['ID'] == 21:        # ID 21 - ИП ДУДКИНА ИННА НИКОЛАЕВНА
+            inn = get_inn_bitrix(company_id=company['ID'])
+            req_id = get_req_id(company_id=company['ID'])
+
+            needed_req = get_bank_req(req_id=req_id)
+
+            req_data['ИНН_исполнителя'] = inn
+            req_data['Рас_счёт_исполнителя'] = needed_req['RQ_ACC_NUM']
+            req_data['БИК_банка_исполнителя'] = needed_req['RQ_BIK']
+            req_data['Корр_счет_исполнителя'] = needed_req['RQ_COR_ACC_NUM']
+
+            return req_data
 
 
 if __name__ == '__main__':
-    # uf_task = get_uf_tasks()
-    current_task_1 = get_task_by_id(task_id=1409)
-    current_task_2 = get_task_by_id(task_id=1380)
-    print(current_task_1, current_task_2, sep='\n')
+    company_lst = get_all_companies()
 
-    updated_task: dict | str = update_task(task_id=1409, company_name='ООО "РЕСТОБУРГ"')
-    print(f"updated_task {updated_task}")
-    current_task_1 = get_task_by_id(task_id=1409)
-    print('После обновления', current_task_1, sep='\n')
+    for company in company_lst:
+        if company['ID'] == '21' or company['ID'] == 21:
+            inn = get_inn_bitrix(company_id=company['ID'])
+            req_id = get_req_id(company_id=company['ID'])
+
+            needed_req = get_bank_req(req_id=req_id)
+            print(needed_req)
+            pass
+
+    # 'ufAuto713946616750'
+    current_task = get_task_by_id(task_id=1418)
+
+
     pass
+
 
     # created_task: dict | str = add_task(creator_id=69, responsible_id=69,
     #                                     name_company='Тестовая компания', ecp_date='01.01.2026')

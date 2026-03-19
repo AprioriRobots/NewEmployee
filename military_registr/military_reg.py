@@ -1,7 +1,8 @@
+import os
 from openpyxl import load_workbook
 
 
-parsed_data_from_1c =\
+parsed_data_1c =\
     {'document_info':
          {'ВидДокумента': 'Паспорт гражданина РФ',
           'ДатаВыдачи': '06.10.2021',
@@ -112,6 +113,7 @@ def list_msg_sample_former(input_sample: str, output_result: str, parsed_data_1c
         '<Адрес места проживания>': parsed_data_1c['personal_info']['Адрес_проживания'],
 
         '<Инициалы имени, отчества ответственного за ВУ>': parsed_data_1c['military_info']['ИнициалыИмениОтчестваОтветственногоЗаВУ'],
+        '<Фамилия ответственного за ВУ>': parsed_data_1c['military_info']['ФамилияОтветсвтенногоЗаВУ'],
 
         '<Дата приказа о приеме>': parsed_data_1c['job_info']['ДатаПриемаНаРаботу']
     }
@@ -160,10 +162,6 @@ def list_msg_sample_former(input_sample: str, output_result: str, parsed_data_1c
                         cell.value = cell.value.replace('<Воинское звание>',
                                                         list_msg_input_words['<Воинское звание>'])
 
-                    if '<Воинское звание>' in cell.value:
-                        cell.value = cell.value.replace('<Воинское звание>',
-                                                        list_msg_input_words['<Воинское звание>'])
-
                     if '<ВУС>' in cell.value:
                         cell.value = cell.value.replace('<ВУС>',
                                                         list_msg_input_words['<ВУС>'])
@@ -200,6 +198,12 @@ def list_msg_sample_former(input_sample: str, output_result: str, parsed_data_1c
                         cell.value = cell.value.replace(
                             '<Инициалы имени, отчества ответственного за ВУ>',
                             list_msg_input_words['<Инициалы имени, отчества ответственного за ВУ>']
+                        )
+
+                    if '<Фамилия ответственного за ВУ>' in cell.value:
+                        cell.value = cell.value.replace(
+                            '<Фамилия ответственного за ВУ>',
+                            list_msg_input_words['<Фамилия ответственного за ВУ>']
                         )
 
                     if '<Дата приказа о приеме>' in cell.value:
@@ -425,7 +429,11 @@ def application_sample_former(input_sample: str, output_result: str, parsed_data
                         cell.value = cell.value.replace('<Инициалы имени, отчества ответственного за ВУ>',
                                                         application_input_words['<Инициалы имени, отчества ответственного за ВУ>'])
 
-                    if '<Квалификация> ' in cell.value:
+                    if '<Фамилия ответственного за ВУ>' in cell.value:
+                        cell.value = cell.value.replace('<Фамилия ответственного за ВУ>',
+                                                        application_input_words['<Фамилия ответственного за ВУ>'])
+
+                    if '<Квалификация>' in cell.value:
                         cell.value = cell.value.replace('<Квалификация>',
                                                         application_input_words['<Квалификация>'])
 
@@ -440,6 +448,10 @@ def application_sample_former(input_sample: str, output_result: str, parsed_data
                     if '<Фамилия руководителя>' in cell.value:
                         cell.value = cell.value.replace('<Фамилия руководителя>',
                                                         application_input_words['<Фамилия руководителя>'])
+
+                    if '<Дата рождения>' in cell.value:
+                        cell.value = cell.value.replace('<Дата рождения>',
+                                                        application_input_words['<Дата рождения>'])
 
         wb.save(output_result)
         return output_result
@@ -505,6 +517,10 @@ def info_changes_sample_former(input_sample: str, output_result: str, parsed_dat
                         cell.value = cell.value.replace('<Инициалы имени, отчества ответственного за ВУ>',
                                                         info_changes_input_words['<Инициалы имени, отчества ответственного за ВУ>'])
 
+                    if '<Фамилия ответственного за ВУ>' in cell.value:
+                        cell.value = cell.value.replace('<Фамилия ответственного за ВУ>',
+                                                        info_changes_input_words['<Фамилия ответственного за ВУ>'])
+
                     if '<Инициалы имени, отчества руководителя>' in cell.value:
                         cell.value = cell.value.replace('<Инициалы имени, отчества руководителя>',
                                                         info_changes_input_words['<Инициалы имени, отчества руководителя>'])
@@ -512,6 +528,10 @@ def info_changes_sample_former(input_sample: str, output_result: str, parsed_dat
                     if '<Фамилия руководителя>' in cell.value:
                         cell.value = cell.value.replace('<Фамилия руководителя>',
                                                         info_changes_input_words['<Фамилия руководителя>'])
+
+                    if '<Дата рождения>' in cell.value:
+                        cell.value = cell.value.replace('<Дата рождения>',
+                                                        info_changes_input_words['<Дата рождения>'])
 
         wb.save(output_result)
         return output_result
@@ -642,8 +662,10 @@ def notification_sample_former(input_sample: str, output_result: str, parsed_dat
 def f10_sample_former(input_sample: str, output_result: str, parsed_data_1c: dict) -> str:
     f10_input_words: dict = {
         '<Полное наименование>': parsed_data_1c['job_info']['Организация']['НаименованиеПолное'],
-        '<Инициалы имени, отчества ответственного за ВУ>': '<Инициалы имени, отчества ответственного за ВУ>',
-        '<Фамилия ответственного за ВУ>': '<Фамилия ответственного за ВУ>',
+
+        '<Инициалы имени, отчества ответственного за ВУ>': parsed_data_1c['military_info']['ИнициалыИмениОтчестваОтветственногоЗаВУ'],
+        '<Фамилия ответственного за ВУ>': parsed_data_1c['military_info']['ФамилияОтветсвтенногоЗаВУ'],
+
         '<Фамилия>': parsed_data_1c['personal_info']['ФИО'].split(' ')[0],
         '<Имя>': parsed_data_1c['personal_info']['ФИО'].split(' ')[1],
         '<Отчество>': parsed_data_1c['personal_info']['ФИО'].split(' ')[2],
@@ -653,7 +675,7 @@ def f10_sample_former(input_sample: str, output_result: str, parsed_data_1c: dic
         '<Вид образования>': parsed_data_1c['personal_info']['Образование']['ВидОбразования'],
         '<Учебное заведение>': parsed_data_1c['personal_info']['Образование']['УчебноеЗаведение'],
         '<Квалификация>': parsed_data_1c['personal_info']['Образование']['Квалификация'],
-        '<Специальность> ': parsed_data_1c['personal_info']['Образование']['Специальность'],
+        '<Специальность>': parsed_data_1c['personal_info']['Образование']['Специальность'],
         '<Серия квалификационного документа>': parsed_data_1c['personal_info']['Образование']['Серия'],
         '<Номер квалификационного документа>': parsed_data_1c['personal_info']['Образование']['Номер'],
         '<Период обучения по>': parsed_data_1c['personal_info']['Образование']['ПериодОбучения'],
@@ -745,18 +767,47 @@ def f10_sample_former(input_sample: str, output_result: str, parsed_data_1c: dic
                         cell.value = cell.value.replace('<Дата выдачи документа, удостоверяющего личность>',
                                                         f10_input_words['<Дата выдачи документа, удостоверяющего личность>'])
 
+                    if '<Серия квалификационного документа>' in cell.value:
+                        cell.value = cell.value.replace('<Серия квалификационного документа>',
+                                                        f10_input_words['<Серия квалификационного документа>'])
+
+                    if '<Номер квалификационного документа>' in cell.value:
+                        cell.value = cell.value.replace('<Номер квалификационного документа>',
+                                                        f10_input_words['<Номер квалификационного документа>'])
+
+
         wb.save(output_result)
         return output_result
     except Exception as e:
         return f'Ошибка во время формирования файла: {e}'
 
 
+# def form_military_files(input_folder: str, output_result: str, parsed_data_1c: dict) -> list[str]:
+#     formed_files: list[str] = []
+#
+#     for file in os.listdir(input_folder):
+#         list_msg: str = list_msg_sample_former(input_sample=f'{input_folder}/{file}',
+#                                                output_result=f'{output_result}/output_{file}',
+#                                                parsed_data_1c=parsed_data_1c)
+#
+#         # Значит файл сформирован без возникновения ошибок
+#         if 'output' in list_msg:
+#             formed_files.append(list_msg)
+#
+#         msg_13: str = msg_13_sample_former(input_sample=f'{input_folder}/{file}',
+#                                            output_result=f'{output_result}/output_{file}',
+#                                            parsed_data_1c=parsed_data_1c)
+#
+#     return formed_files
+
+
+
 
 if __name__ == '__main__':
-    # list_msg: str = list_msg_sample_former(input_sample='input_samples/Листок-сообщения.xlsx',
-    #                                        output_result='output_result/output_Листок-сообщения.xlsx',
-    #                                        parsed_data_1c=parsed_data_1c)
-
+    list_msg: str = list_msg_sample_former(input_sample='input_samples/Листок-сообщения.xlsx',
+                                           output_result='output_result/output_Листок-сообщения.xlsx',
+                                           parsed_data_1c=parsed_data_1c)
+    #
     # msg_13: str = msg_13_sample_former(input_sample='input_samples/Письмо 13.xlsx',
     #                                    output_result='output_result/output_Письмо 13.xlsx',
     #                                    parsed_data_1c=parsed_data_1c)
@@ -765,20 +816,20 @@ if __name__ == '__main__':
     #                                          output_result='output_result/output_Приложение 10.xlsx',
     #                                          parsed_data_1c=parsed_data_1c,
     #                                          sheet_name='Сведения прил. 10')
-    #
+
     # appl_23: str = application_sample_former(input_sample='input_samples/Приложение 23.xlsx',
     #                                          output_result='output_result/output_Приложение 23.xlsx',
     #                                          parsed_data_1c=parsed_data_1c,
     #                                          sheet_name='Сверка')
-
+    #
     # info_change: str = info_changes_sample_former(input_sample='input_samples/Сведения об изменениях.xlsx',
     #                                               output_result='output_result/output_Сведения об изменениях.xlsx',
     #                                               parsed_data_1c=parsed_data_1c)
-
+    #
     # details: str = details_sample_former(input_sample='input_samples/Сведения.xlsx',
     #                                      output_result='output_result/output_Сведения.xlsx',
     #                                      parsed_data_1c=parsed_data_1c)
-
+    #
     # note_1: str = notification_sample_former(input_sample='input_samples/Уведомление 1.xlsx',
     #                                          output_result='output_result/output_Уведомление 1.xlsx',
     #                                          parsed_data_1c=parsed_data_1c, sheet_name='Уведомление 1')
@@ -786,8 +837,8 @@ if __name__ == '__main__':
     # note_2: str = notification_sample_former(input_sample='input_samples/Уведомление 2.xlsx',
     #                                          output_result='output_result/output_Уведомление 2.xlsx',
     #                                          parsed_data_1c=parsed_data_1c, sheet_name='Уведомление 2')
+    #
 
-    f10_doc: str = f10_sample_former(input_sample='input_samples/Ф10.xlsx',
-                                     output_result='output_result/output_Ф10.xlsx',
-                                     parsed_data_1c=parsed_data_1c)
-    pass
+    # f10_doc: str = f10_sample_former(input_sample='input_samples/Ф10.xlsx',
+    #                                  output_result='output_result/output_Ф10.xlsx',
+    #                                  parsed_data_1c=parsed_data_1c)

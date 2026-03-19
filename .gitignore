@@ -34,3 +34,7 @@ employee_instructions/output_result/*
 occup_safety/output_result/*
 
 military_registr/output_result/*
+
+extension_ecp/output_result/*
+
+extension_ecp/report_tokens/*
