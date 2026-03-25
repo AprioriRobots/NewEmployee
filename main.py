@@ -209,6 +209,7 @@ def create_department_task(deal: dict, department_key: str, fio: str, file_paths
     created_task = add_task(
         creator_id=creator_id,
         responsible_id=responsible_id,
+        group_id=141,
         title=config["title"],
         description=description,
         company_name=deal.get("title", ""),
