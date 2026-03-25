@@ -30,7 +30,8 @@ def make_error_msg(token: str, chat_id: str | int, msg: str) -> int | str:
         return f'Ошибка во время отправки запроса {e}'
 
 
-def add_task(creator_id: int | str, responsible_id: int | str, title: str, description: str, company_name: str,
+def add_task(creator_id: int | str, responsible_id: int | str, group_id: int| str,
+             title: str, description: str, company_name: str,
              contains_results: bool = True, contains_gantt_links: bool = True) -> dict | str:
     url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/'
 
@@ -42,7 +43,7 @@ def add_task(creator_id: int | str, responsible_id: int | str, title: str, descr
                 "TITLE": title,
                 "RESPONSIBLE_ID": responsible_id,
                 "CREATED_BY": creator_id,
-                "GROUP_ID": 141,
+                "GROUP_ID": group_id,
                 "DESCRIPTION": description,
                 "DESCRIPTION_IN_BBCODE": "N",
                 "TASK_CONTROL": "N"
