@@ -4,7 +4,6 @@ from datetime import timedelta, datetime
 from typing import Any
 
 
-
 # Банковские данные исполнителя
 CONTRACTORS_REQ_DATA: dict = {
     'БИК_банка_исполнителя': '044525225',

@@ -181,7 +181,7 @@ def get_task_by_id(task_id: str | int) -> dict | str:
     params = {
         'taskId': task_id,
         'select': [
-            'UF_AUTO_494863223278'                                                                          # 'UF_AUTO_494863223278'
+            'UF_AUTO_494863223278'
         ]
     }
     response = requests.post(webhook_url, json=params)
