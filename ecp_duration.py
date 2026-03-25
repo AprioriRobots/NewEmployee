@@ -76,9 +76,9 @@ if __name__ == '__main__':
                                         f" клиентом и согласовать продление ЭЦП, а также уточнить, будут ли они"
                                         f" продлевать через нас или самостоятельно.")
             title_for_main_task: str = f"{company['TITLE']}, продление ЭЦП"
-            created_main_task: dict | str = add_task(creator_id=69, responsible_id=buh, title=title_for_main_task,
+            created_main_task: dict | str = add_task(creator_id=69, responsible_id=buh, group_id=236, title=title_for_main_task,
                                                      description=descr_for_main_task, company_name=company['TITLE'])
-            main_task_id = created_main_task['id']
+            main_task_id = created_main_task['task']['id']
 
             time.sleep(1)
 
@@ -102,17 +102,21 @@ if __name__ == '__main__':
             uploaded_url_act = upload_file(file_path=act_ecp_result,
                                            filename=f'{file_subname}_Пример акта.pdf',
                                            folder_id=24342)
-            uploaded_file_act = upload_to_uploadurl(upload_url=uploaded_url_act, field_name='file',
-                                                    file_path=act_ecp_result)
-            uploaded_file_id_act = uploaded_file_act['result']['ID']
+
+            # uploaded_file_act = upload_to_uploadurl(upload_url=uploaded_url_act, field_name='file',
+            #                                         file_path=act_ecp_result)
+
+            uploaded_file_id_act = uploaded_url_act['ID']
             attached_file_act = attach_file_to_task(task_id=main_task_id, file_id=uploaded_file_id_act)
 
             # Загружаем счет
             uploaded_url_invoice = upload_file(file_path=invoice_ecp_result,
                                                filename=f'{file_subname}_Пример счёта.pdf',
                                                folder_id=24342)
-            uploaded_file_invoice= upload_to_uploadurl(upload_url=uploaded_url_act, field_name='file',
-                                                    file_path=invoice_ecp_result)
-            uploaded_file_id_invoice = uploaded_file_invoice['result']['ID']
+
+            # uploaded_file_invoice= upload_to_uploadurl(upload_url=uploaded_url_act, field_name='file',
+            #                                         file_path=invoice_ecp_result)
+
+            uploaded_file_id_invoice = uploaded_url_invoice['ID']
             attached_file_invoice = attach_file_to_task(task_id=main_task_id, file_id=uploaded_file_id_invoice)
             # break
