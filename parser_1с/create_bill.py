@@ -39,16 +39,20 @@ BILL_DATA: dict[str, Any] = {
     "organization_bank_account": "40802810938000059729",
     "counterparty_inn": "9704047266",
     "counterparty_kpp": "770401001",
-    "document_number": "2029",
-    "document_date": "2026-03-12",
-    "bill_amount": 3500.00,
+    # "document_number": "00ТСТ-000001",
+    "document_date": "2026-03-25",
+    "nds_sum": 175.00,
+    "bill_amount": 3675.00,
+    "nomenclature_price": 3500.00,
     "nds_rate": "НДС5",
-    "nds_sum": 350.00,
-    "payment_purpose": (
-        "Продление сертификата ЭЦП Отчетность в ЛК н/п ФНС/Работа IT специалиста по установке и активации ЭЦП"
-    ),
-    "item_name": "Вводный курс",
+
+    # "payment_purpose": (
+    #     "Продление сертификата ЭЦП Отчетность в ЛК н/п ФНС/Работа IT специалиста по установке и активации ЭЦП"
+    # ),
+
+    "item_name": "Продление сертификата ЭЦП Отчетность в ЛК н/п ФНС/Работа IT специалиста по установке и активации ЭЦП",
     "item_article": "",
+    "responsible_empl": "Матюхина Наталья"
 }
 
 
@@ -183,10 +187,6 @@ def _find_first_contract_by_counterparty(connector: Any, counterparty_ref: Any) 
 
 
 def resolve_references(connector: Any, payload: dict[str, Any]) -> dict[str, Any]:
-    payload["organization_inn"] = "7799292647"
-    payload["counterparty_inn"] = "7799292647"
-    payload["organization_bank_account"] = "40101810000000010004"
-
     org_ref = _find_org_by_inn(connector, payload["organization_inn"])
     counterparty_ref = _find_counterparty_by_inn(connector, payload["counterparty_inn"])
     org_bank_ref = _find_org_bank_account(connector, payload["organization_bank_account"])
@@ -214,8 +214,11 @@ def build_bill_payload_from_defaults() -> dict[str, Any]:
     payload["document_date"] = _env_str("ONEC_BILL_DATE", payload["document_date"])
     payload["bill_amount"] = _env_float("ONEC_BILL_AMOUNT", payload["bill_amount"])
     payload["nds_sum"] = _env_float("ONEC_BILL_NDS_SUM", payload["nds_sum"])
+    payload["nomenclature_price"] =_env_float("ONEC_BILL_NDS_SUM", payload["nomenclature_price"])
     payload["nds_rate"] = _env_str("ONEC_BILL_NDS_RATE", payload["nds_rate"])
-    payload["payment_purpose"] = _env_str("ONEC_BILL_PURPOSE", payload["payment_purpose"])
+
+    # payload["payment_purpose"] = _env_str("ONEC_BILL_PURPOSE", payload["payment_purpose"])
+
     payload["item_name"] = _env_str("ONEC_BILL_ITEM_NAME", payload["item_name"])
     payload["item_article"] = _env_str("ONEC_BILL_ITEM_ARTICLE", payload["item_article"])
 
@@ -266,7 +269,7 @@ def resolve_bill_tabular_section(bill: Any) -> Any:
 def add_bill_line(connector: Any, bill: Any, payload: dict[str, Any]) -> None:
     item_name = str(payload.get("item_name", "")).strip()
     item_article = str(payload.get("item_article", "")).strip()
-    line_sum = float(payload["bill_amount"])
+    line_sum = float(payload["nomenclature_price"])
     line_nds_sum = float(payload["nds_sum"])
 
     nomenclature_ref = resolve_nomenclature(connector=connector, article=item_article, name=item_name)
@@ -341,21 +344,23 @@ def create_and_post_bill(connector: Any, payload: dict[str, Any], doc_number: st
 
     contract_name = refs["contract"].Наименование
 
-    _set_if_exists(bill, "ДоговорКонтрагент", refs["contract"])     # Кодекс выдал атрибут Договор, вместо ДоговорКонтрагент
+    _set_if_exists(bill, "ДоговорКонтрагент", refs["contract"])
 
-    if refs["organization"] is not None:
-        _set_if_exists(bill, "ИННПлательщика", refs["organization"].ИНН)
-        _set_if_exists(bill, "КПППлательщика", refs["organization"].КПП)
-
-    if refs["counterparty"] is not None:
-        _set_if_exists(bill, "ИННПолучателя", refs["counterparty"].ИНН)
-        _set_if_exists(bill, "КПППолучателя", refs["counterparty"].КПП)
+    # if refs["organization"] is not None:
+    #     _set_if_exists(bill, "ИННПлательщика", refs["organization"].ИНН)
+    #     _set_if_exists(bill, "КПППлательщика", refs["organization"].КПП)
+    #
+    # if refs["counterparty"] is not None:
+    #     _set_if_exists(bill, "ИННПолучателя", refs["counterparty"].ИНН)
+    #     _set_if_exists(bill, "КПППолучателя", refs["counterparty"].КПП)
 
     _set_if_exists(bill, "СуммаДокумента", payload["bill_amount"])
     _set_if_exists(bill, "СуммаНДС", payload["nds_sum"])
     _set_nds_rate_if_possible(connector, bill, str(payload["nds_rate"]))
-    _set_if_exists(bill, "НазначениеПлатежа", payload["payment_purpose"])
+    # _set_if_exists(bill, "НазначениеПлатежа", payload["payment_purpose"])
     _set_if_exists(bill, "Дата", _parse_1c_date(payload["document_date"]))
+
+    _set_if_exists(bill, "Ответственный", _parse_1c_date(payload["responsible_empl"]))
 
     payload["document_number"] = doc_number
 
@@ -399,7 +404,7 @@ def _print_result(bill: Any, posted_expected: bool) -> None:
 
 def create_bill(connector: win32com.client, number: str) -> win32com.client:
     payload = build_bill_payload_from_defaults()
-    post_document = _env_bool("ONEC_BILL_POST", default=True)
+    # post_document = _env_bool("ONEC_BILL_POST", default=True)
 
     bill = create_and_post_bill(connector=connector, payload=payload, doc_number=number)
     # _print_result(bill=bill, posted_expected=post_document)
@@ -408,6 +413,7 @@ def create_bill(connector: win32com.client, number: str) -> win32com.client:
 
 if __name__ == "__main__":
     V83_CONN_STRING = 'Srvr="srv2024.apriori.loc:1541";Ref="buh_apriori";Usr="Робот";Pwd="YUSliot3Cb";'
+    V83_CONN_STRING = 'Srvr="srv2024.apriori.loc:1641";Ref="buh_verona";Usr="Робот";Pwd="YUSliot3Cb";'
     V83 = None
 
     try:
@@ -417,6 +423,6 @@ if __name__ == "__main__":
 
     if V83 is not None:
         try:
-            create_bill(connector=connector, number='')
+            create_bill(connector=connector, number='00ТСТ-000001')
         except Exception as error:
             print(f"Ошибка во время создания счета в 1С: {error}")

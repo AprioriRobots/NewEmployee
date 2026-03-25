@@ -160,10 +160,6 @@ def _find_first_contract_by_counterparty(connector: Any, counterparty_ref: Any) 
 
 
 def resolve_references(connector: Any, payload: dict[str, Any], doc_number: str) -> dict[str, Any]:
-    payload["organization_inn"] = "7799292647"
-    payload["counterparty_inn"] = "7799292647"
-    payload["organization_bank_account"] = "40101810000000010004"
-
     org_ref = _find_org_by_inn(connector, payload["organization_inn"])
     counterparty_ref = _find_counterparty_by_inn(connector, payload["counterparty_inn"])
     org_bank_ref = _find_org_bank_account(connector, payload["organization_bank_account"])
@@ -325,7 +321,7 @@ def create_and_post_act(connector: Any, payload: dict[str, Any], doc_number: str
     _set_if_exists(act, "Контрагент", refs["counterparty"])
 
     _set_if_exists(act, "ДоговорКонтрагента", refs["contract"])
-    _set_if_exists(act, "СчетОрганизации", refs["organization_bank_account"])
+    _set_if_exists(act, "СтруктурнаяЕдиница", refs["organization_bank_account"])
 
     _set_if_exists(act, "КПППолучателя", payload["counterparty_kpp"])
 
