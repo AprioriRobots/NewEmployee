@@ -1,3 +1,4 @@
+import datetime
 import time
 
 from bitrix.bitrix import (get_inn_bitrix, get_token_report_file, get_all_companies, add_task, upload_file,
@@ -22,6 +23,12 @@ def match_data(extracted_data: list[dict], inn_company: str | int) -> dict | Non
 
     return None
 
+def format_today_date() -> str:
+  today = datetime.date.today()
+  formatted_date = today.strftime("%d-%m-%Y")
+
+  return formatted_date
+
 
 if __name__ == '__main__':
     # act_ecp_result: str = form_ecp_act(input_sample='input_samples/Пример акта.docx',
@@ -33,6 +40,7 @@ if __name__ == '__main__':
 
     if invoice_tokens_file is None:
         print('Файл "ОТКЕНЫ ОТЧЕТНОСТЬ" не был загружен. Завершение программы')
+
         pass
 
     extracted_data: list[dict] = app_data_extracter(path_file='extension_ecp/report_tokens/ТОКЕНЫ ОТЧЕТНОСТЬ.xlsx')
@@ -98,9 +106,11 @@ if __name__ == '__main__':
                                                        output_result=f'extension_ecp/output_result/{file_subname}_Пример счёта.docx',
                                                        parsed_data_1c=org_info, reqs_bank_main_org=contractors_req_data)
 
+            today: str  = format_today_date()
+
             # Загружаем акт
             uploaded_url_act = upload_file(file_path=act_ecp_result,
-                                           filename=f'{file_subname}_Пример акта.pdf',
+                                           filename=f'{file_subname}_акт_{today}.pdf',
                                            folder_id=24342)
 
             # uploaded_file_act = upload_to_uploadurl(upload_url=uploaded_url_act, field_name='file',
@@ -111,7 +121,7 @@ if __name__ == '__main__':
 
             # Загружаем счет
             uploaded_url_invoice = upload_file(file_path=invoice_ecp_result,
-                                               filename=f'{file_subname}_Пример счёта.pdf',
+                                               filename=f'{file_subname}_счёт_{today}.pdf',
                                                folder_id=24342)
 
             # uploaded_file_invoice= upload_to_uploadurl(upload_url=uploaded_url_act, field_name='file',
