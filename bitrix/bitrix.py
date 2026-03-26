@@ -83,7 +83,8 @@ def add_task_ecp(creator_id: int | str, responsible_id: int | str, group_id: int
                 "GROUP_ID": group_id,
                 "DESCRIPTION": description,
                 "DESCRIPTION_IN_BBCODE": "N",
-                "TASK_CONTROL": "N"
+                "TASK_CONTROL": "N",
+                "AUDITORS": [69]
             }
         }
 
