@@ -38,3 +38,5 @@ military_registr/output_result/*
 extension_ecp/output_result/*
 
 extension_ecp/report_tokens/*
+
+ecp_duration.log
