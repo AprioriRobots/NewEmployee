@@ -30,9 +30,46 @@ def make_error_msg(token: str, chat_id: str | int, msg: str) -> int | str:
         return f'Ошибка во время отправки запроса {e}'
 
 
-def add_task(creator_id: int | str, responsible_id: int | str, group_id: int| str,
-             title: str, description: str, company_name: str,
-             contains_results: bool = True, contains_gantt_links: bool = True) -> dict | str:
+def build_task_crm_binding(entity_type_id: int | str, entity_id: int | str) -> str:
+    return f"T{int(entity_type_id):x}_{int(entity_id)}"
+
+
+def build_task_deal_binding(deal_id: int | str) -> str:
+    return f"D_{int(deal_id)}"
+
+
+def add_task(creator_id: int | str, responsible_id: int | str, title: str, description: str, company_name: str,
+             contains_results: bool = True, contains_gantt_links: bool = True,
+             crm_bindings: list[str] | None = None) -> dict | str:
+    url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/'
+
+    try:
+        bx24 = Bitrix24(url)
+
+        params: dict = {
+            "fields": {
+                "TITLE": title,
+                "RESPONSIBLE_ID": responsible_id,
+                "CREATED_BY": creator_id,
+                "GROUP_ID": 141,
+                "DESCRIPTION": description,
+                "DESCRIPTION_IN_BBCODE": "N",
+                "TASK_CONTROL": "N"
+            }
+        }
+
+        if contains_results:
+            params["fields"]["UF_TASK_WEBDAV_FILES"] = []
+        if crm_bindings:
+            params["fields"]["UF_CRM_TASK"] = crm_bindings
+
+        return bx24.callMethod('tasks.task.add', params=params)
+    except BitrixError as e:
+        return f'Ошибка во время отправки запроса {e}'
+
+
+def add_task_ecp(creator_id: int | str, responsible_id: int | str, group_id: int| str, title: str, description: str, company_name: str,
+             contains_results: bool = True) -> dict | str:
     url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/'
 
     try:
@@ -56,6 +93,7 @@ def add_task(creator_id: int | str, responsible_id: int | str, group_id: int| st
         return bx24.callMethod('tasks.task.add', params=params)
     except BitrixError as e:
         return f'Ошибка во время отправки запроса {e}'
+
 
 def add_checklist_item(task_id: int | str, title: str, sort_index: int | None = None,
                        is_complete: str = 'N') -> dict | str:
@@ -101,6 +139,27 @@ def update_task(task_id: int, company_name: str) -> dict | str:
             return f"Ошибка в ответе API: {data}"
     else:
         return f"HTTP ошибка: {response.status_code}, сообщение: {response.text}"
+
+
+def update_task_crm_bindings(task_id: int | str, crm_bindings: list[str]) -> dict | str:
+    url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/tasks.task.update'
+
+    params = {
+        "id": int(task_id),
+        "fields": {
+            "UF_CRM_TASK": crm_bindings,
+        }
+    }
+
+    response = requests.post(url, json=params)
+
+    if response.status_code == 200:
+        data = response.json()
+        if 'result' in data:
+            return data['result']
+        return f"Ошибка в ответе API: {data}"
+
+    return f"HTTP ошибка: {response.status_code}, сообщение: {response.text}"
 
 
 
@@ -181,7 +240,7 @@ def get_task_by_id(task_id: str | int) -> dict | str:
     params = {
         'taskId': task_id,
         'select': [
-            'UF_AUTO_494863223278'
+            'UF_AUTO_494863223278'                                                                          # 'UF_AUTO_494863223278'
         ]
     }
     response = requests.post(webhook_url, json=params)
@@ -353,6 +412,28 @@ def add_file_to_smart_process(token: str, entity_id: int | str, entity_type_id: 
         return msg_response
     except IndexError as e:
         return f'Ошибка во время отправки запроса {e}'
+
+
+def update_smart_process_stage(entity_id: int | str, entity_type_id: int | str, stage_id: str) -> dict | str:
+    url = f'https://b24.apriori.rest/rest/69/{BITRIX_TOKEN}/crm.item.update'
+
+    params: dict = {
+        'entityTypeId': int(entity_type_id),
+        'id': int(entity_id),
+        'fields': {
+            'stageId': stage_id
+        }
+    }
+
+    response = requests.post(url, json=params)
+
+    if response.status_code == 200:
+        data = response.json()
+        if 'result' in data:
+            return data['result']
+        return f"Ошибка в ответе API: {data}"
+
+    return f"HTTP ошибка: {response.status_code}, сообщение: {response.text}"
 
 
 def get_all_companies() -> list | None:

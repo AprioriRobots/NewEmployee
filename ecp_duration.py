@@ -1,7 +1,7 @@
 import datetime
 import time
 
-from bitrix.bitrix import (get_inn_bitrix, get_token_report_file, get_all_companies, add_task, upload_file,
+from bitrix.bitrix import (get_inn_bitrix, get_token_report_file, get_all_companies, add_task_ecp, upload_file,
                            upload_to_uploadurl, attach_file_to_task, get_buh_id, make_task_dependence, update_task,
                            get_task_by_id, get_contractors_reqs)
 from parser_1с.personal_info import organisation_info, only_org_info
@@ -84,7 +84,7 @@ if __name__ == '__main__':
                                         f" клиентом и согласовать продление ЭЦП, а также уточнить, будут ли они"
                                         f" продлевать через нас или самостоятельно.")
             title_for_main_task: str = f"{company['TITLE']}, продление ЭЦП"
-            created_main_task: dict | str = add_task(creator_id=69, responsible_id=buh, group_id=236, title=title_for_main_task,
+            created_main_task: dict | str = add_task_ecp(creator_id=43, responsible_id=buh, group_id=236, title=title_for_main_task,
                                                      description=descr_for_main_task, company_name=company['TITLE'])
             main_task_id = created_main_task['task']['id']
 
