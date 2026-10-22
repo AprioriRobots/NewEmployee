@@ -1,0 +1,25 @@
+payroll_debug: fio='Минин Павел Сергеевич'; payroll_type='47,581'; hourly_rate='47,581'; tariff_kind='Месячная тарифная ставка'; salary_value=47581; payroll_type_attrs=['Начисление', 'ОсновноеНачисление', 'НачислениеОплатыТруда', 'ВидНачисления', 'НачисленияУтверждены', 'УправленческиеНачисленияУтверждены', 'СовокупнаяТарифнаяСтавка', 'ВидТарифнойСтавки']; hourly_rate_attrs=['ОплатаПоЧасовомуТарифу', 'ЧасоваяТарифнаяСтавка', 'ТарифнаяСтавка', 'СтоимостьЧаса', 'ОплатаЗаЧас', 'СовокупнаяТарифнаяСтавка', 'ВидТарифнойСтавки']; tariff_kind_attrs=['ВидТарифнойСтавки', 'ТипТарифнойСтавки', 'СовокупнаяТарифнаяСтавка']
+=== URGENT CONTRACT DEBUG START ===
+fio: Минин Павел Сергеевич
+hire_doc_ref: <COMObject <unknown>>
+hire_doc_obj_type: CDispatch
+urgent_contract_flag: False
+available_attrs_filtered: []
+metadata_requisites_filtered: ['ДатаПриема', 'ДлительностьИспытательногоСрока', 'ВидДоговора', 'ТрудовойДоговорНомер', 'ТрудовойДоговорДата', 'СрочныйДоговор', 'СезонныйДоговор', 'ДатаЗавершенияТрудовогоДоговора', 'ОснованиеСрочногоДоговора', 'СрокЗаключенияДоговора', 'ИныеУсловияДоговора', 'ДатаПрисвоения', 'ДатаЗапрета', 'ДатаЗаявленияОВыбореСпособаВеденияТрудовойКнижки', 'ДатаВторогоДокументаОснования', 'ПриемТрудовымДоговором']
+date_attr ДатаЗавершенияТрудовогоДоговора: obj=pywintypes.datetime(100, 1, 1, 0, 0, tzinfo=TimeZoneInfo('GMT Standard Time', True)); selection=None
+date_attr СрочныйТрудовойДоговорДо: obj=None; selection=None
+date_attr СрокТрудовогоДоговораДо: obj=None; selection=None
+date_attr ДатаОкончанияСрочногоТрудовогоДоговора: obj=None; selection=None
+date_attr ДатаОкончанияТрудовогоДоговора: obj=None; selection=None
+date_attr ДатаОкончанияДоговора: obj=None; selection=None
+date_attr СрокДоговораДо: obj=None; selection=None
+date_attr ДатаОкончанияСрочногоДоговора: obj=None; selection=None
+date_attr СрочныйДоговорДо: obj=None; selection=None
+date_attr ДатаПо: obj=None; selection=None
+basis_attr ОснованиеСрочногоДоговора: obj=<COMObject <unknown>>; selection=None
+basis_attr ОснованиеЗаключенияСрочногоТрудовогоДоговора: obj=None; selection=None
+basis_attr ОснованиеСрочногоТрудовогоДоговора: obj=None; selection=None
+urgent_contract_till_result: None
+urgent_contract_basis_result: ''
+urgent_contract_enabled: False
+=== URGENT CONTRACT DEBUG END ===
