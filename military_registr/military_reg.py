@@ -1,6 +1,151 @@
 import os
 from openpyxl import load_workbook
 
+from name_utils import get_fio_part, get_name_patronymic_initials
+
+
+def _get_relatives_list(parsed_data_1c: dict) -> list[dict]:
+    personal_info = parsed_data_1c.get('personal_info', {})
+    relatives_list = personal_info.get('РодственникиСписок') or []
+    if relatives_list:
+        return relatives_list[:5]
+
+    single_relative = personal_info.get('Родственники', {})
+    if any(single_relative.get(key, '') for key in ('Фамилия', 'Имя', 'Отчество', 'ДатаРождения', 'СтепеньРодства')):
+        return [single_relative]
+    return []
+
+
+def _get_family_input_words(parsed_data_1c: dict) -> dict:
+    relatives_list = _get_relatives_list(parsed_data_1c)
+    placeholders = (
+        ('СтепеньРодства', 'Степень родства'),
+        ('Фамилия', 'Фамилия родственника'),
+        ('Имя', 'Имя родственника'),
+        ('Отчество', 'Отчество родственника'),
+        ('ДатаРождения', 'Дата рождения родственника'),
+    )
+    family_input_words: dict = {}
+
+    for index in range(5):
+        relative = relatives_list[index] if index < len(relatives_list) else {}
+        suffix = '' if index == 0 else str(index + 1)
+        for source_key, placeholder_name in placeholders:
+            family_input_words[f'<{placeholder_name}{suffix}>'] = relative.get(source_key, '')
+
+    return family_input_words
+
+
+def _shared_military_registration_input_words(parsed_data_1c: dict) -> dict:
+    personal_info = parsed_data_1c.get('personal_info', {})
+    job_info = parsed_data_1c.get('job_info', {})
+    document_info = parsed_data_1c.get('document_info', {})
+    military_info = parsed_data_1c.get('military_info', {})
+    org_info = job_info.get('Организация', {})
+    driver_license = personal_info.get('ВодительскоеУдостоверение', {})
+
+    shared_input_words = {
+        '<Фамилия>': get_fio_part(personal_info.get('ФИО', ''), 0),
+        '<Имя>': get_fio_part(personal_info.get('ФИО', ''), 1),
+        '<Отчество>': get_fio_part(personal_info.get('ФИО', ''), 2),
+        '<Полное имя работника>': personal_info.get('ФИО', ''),
+        '<Полное наименование>': org_info.get('НаименованиеПолное', ''),
+        '<Краткое наименование>': org_info.get('НаименованиеСокращенное', ''),
+        '<Юридический адрес>': org_info.get('ЮридическийАдрес', ''),
+        '<Фактический адрес>': org_info.get('ФактическийАдрес', ''),
+        '<ИНН организации>': org_info.get('ИНН_Орг', ''),
+        '<КПП организации>': org_info.get('КПП_Орг', ''),
+        '<ОГРН организации>': org_info.get('ОГРН(ИП)', ''),
+        '<Дата рождения>': document_info.get('ДатаРождения', ''),
+        '<Место рождения>': document_info.get('МестоРождения', ''),
+        '<Семейное положение>': personal_info.get('СемейноеПоложение', ''),
+        '<Адрес места проживания>': personal_info.get('Адрес_проживания', ''),
+        '<Адрес по прописке>': personal_info.get('Адрес_прописка', ''),
+        '<Мобильный телефон>': personal_info.get('Телефон', ''),
+        '<СНИЛС>': personal_info.get('СНИЛС', ''),
+        '<Подразделение>': job_info.get('Подразделение', ''),
+        '<Должность работника>': job_info.get('Должность', ''),
+        '<Дата приказа о приеме>': job_info.get('ДатаПриемаНаРаботу', ''),
+        '<Номер приказа о приеме>': job_info.get('НомерПриказаОПриеме', job_info.get('ТкНомер', '')),
+        '<Приказ №>': job_info.get('НомерПриказаОПриеме', job_info.get('ТкНомер', '')),
+        '<Договор №>': job_info.get('ТкНомер', ''),
+        '<Военкомат>': military_info.get('Военкомат', ''),
+        '<Адрес военкомата>': military_info.get('АдресВоенкомата', ''),
+        '<Категория запаса>': military_info.get('КатегорияЗапаса', ''),
+        '<Воинское звание>': military_info.get('ВоинскоеЗвание', ''),
+        '<Состав (профиль)>': military_info.get('СоставПрофиль', ''),
+        '<ВУС>': military_info.get('ВУС', ''),
+        '<Годность к воинской службе>': military_info.get('Годность', ''),
+        '<Документ воинского учёта>': military_info.get('ДокументВоинскогоУчета', ''),
+        '<Серия документа воинского учёта>': military_info.get('СерияДокументаВоинскогоУчета', ''),
+        '<Номер документа воинского учёта>': military_info.get('НомерДокументаВоинскогоУчета', ''),
+        '<Отдел, выдавший документ воинского учёта>': military_info.get('ОтделВыдавшийДокументВоинскогоУчета', ''),
+        '<Дата выдачи документа воинского учёта>': military_info.get('ДатаВыдачиДокументаВоинскогоУчета', ''),
+        '<Должность ответственного за ВУ>': military_info.get('ДолжностьОтветственногоЗаВУ', ''),
+        '<Инициалы имени, отчества ответственного за ВУ>': military_info.get('ИнициалыИмениОтчестваОтветственногоЗаВУ', ''),
+        '<Фамилия ответственного за ВУ>': military_info.get('ФамилияОтветсвтенногоЗаВУ', ''),
+        '<Должность руководителя>': org_info.get('ДолжностьРуководителя', ''),
+        '<Инициалы имени, отчества руководителя>': get_name_patronymic_initials(org_info.get('Руководитель', '')),
+        '<Фамилия руководителя>': get_fio_part(org_info.get('Руководитель', ''), 0),
+        '<Вид образования>': personal_info.get('Образование', {}).get('ВидОбразования', ''),
+        '<Учебное заведение>': personal_info.get('Образование', {}).get('УчебноеЗаведение', ''),
+        '<Квалификация>': personal_info.get('Образование', {}).get('Квалификация', ''),
+        '<Специальность>': personal_info.get('Образование', {}).get('Специальность', ''),
+        '<Период обучения по>': personal_info.get('Образование', {}).get('ПериодОбучения', ''),
+        '<Серия квалификационного документа>': personal_info.get('Образование', {}).get('Серия', ''),
+        '<Номер квалификационного документа>': personal_info.get('Образование', {}).get('Номер', ''),
+        '<Серия документа, удостоверяющего личность>': document_info.get('Серия', ''),
+        '<Номер документа, удостоверяющего личность>': document_info.get('Номер', ''),
+        '<Дата выдачи документа, удостоверяющего личность>': document_info.get('ДатаВыдачи', ''),
+        '<Орган, выдавший документ, удостоверяющего личность>': document_info.get('КемВыдан', ''),
+        '<Код подразделения>': document_info.get('КодПодразделения', ''),
+        '<Дата регистрации>': personal_info.get('ДатаРегистрации', ''),
+        '<Инициалы имени, отчества>': get_name_patronymic_initials(personal_info.get('ФИО', '')),
+        '<Водительское удостоверение:серия>': driver_license.get('Серия', ''),
+        '<Водительское удостоверение:номер>': driver_license.get('Номер', ''),
+        '<Водительское удостоверение:дата выдачи>': driver_license.get('ДатаВыдачи', ''),
+        '<Водительское удостоверение:категории ТС>': driver_license.get('КатегорииТС', ''),
+    }
+    shared_input_words.update(_get_family_input_words(parsed_data_1c))
+    shared_input_words.update(_commission_input_words(parsed_data_1c))
+    return shared_input_words
+
+
+def _replace_placeholders_in_worksheet(ws, replacements: dict) -> None:
+    for row in ws.iter_rows():
+        for cell in row:
+            if cell.value and isinstance(cell.value, str):
+                for placeholder, replacement in replacements.items():
+                    if placeholder in cell.value:
+                        cell.value = cell.value.replace(placeholder, replacement)
+
+
+def _commission_input_words(parsed_data_1c: dict) -> dict:
+    org_info = parsed_data_1c['job_info']['Организация']
+    return {
+        '<Должность председателя комиссии>': org_info.get('ДолжностьПредседателяКомиссии', ''),
+        '<Фамилия председателя комиссии>': org_info.get('ФамилияПредседателяКомиссии', ''),
+        '<Инициалы имени, отчества председателя комиссии>': org_info.get('ИнициалыИмениОтчестваПредседателяКомиссии', ''),
+        '<Должность члена комиссии 1>': org_info.get('ДолжностьЧленаКомиссии1', ''),
+        '<Фамилия члена комиссии 1>': org_info.get('ФамилияЧленаКомиссии1', ''),
+        '<Инициалы имени, отчества члена комиссии 1>': org_info.get('ИнициалыИмениОтчестваЧленаКомиссии1', ''),
+        '<Должность члена комиссии 2>': org_info.get('ДолжностьЧленаКомиссии2', ''),
+        '<Фамилия члена комиссии 2>': org_info.get('ФамилияЧленаКомиссии2', ''),
+        '<Инициалы имени, отчества члена комиссии 2>': org_info.get('ИнициалыИмениОтчестваЧленаКомиссии2', ''),
+    }
+
+
+def _military_document_input_words(parsed_data_1c: dict) -> dict:
+    military_info = parsed_data_1c.get('military_info', {})
+    return {
+        '<Адрес военкомата>': military_info.get('АдресВоенкомата', ''),
+        '<Документ воинского учёта>': military_info.get('ДокументВоинскогоУчета', ''),
+        '<Серия документа воинского учёта>': military_info.get('СерияДокументаВоинскогоУчета', ''),
+        '<Номер документа воинского учёта>': military_info.get('НомерДокументаВоинскогоУчета', ''),
+        '<Отдел, выдавший документ воинского учёта>': military_info.get('ОтделВыдавшийДокументВоинскогоУчета', ''),
+        '<Дата выдачи документа воинского учёта>': military_info.get('ДатаВыдачиДокументаВоинскогоУчета', ''),
+    }
+
 
 parsed_data_1c =\
     {'document_info':
@@ -75,12 +220,19 @@ parsed_data_1c =\
                             'УчебноеЗаведение': ''},
                        'ПОЛ': 'Мужской',
                        'РасчетныйСчет': '',
+                       'СемейноеПоложение': '',
+                       'ДатаРегистрации': '',
                        'Родственники':
                            {'ДатаРождения': '',
                             'Имя': '',
                             'Отчество': '',
                             'СтепеньРодства': '',
                             'Фамилия': ''},
+                       'ВодительскоеУдостоверение':
+                           {'ДатаВыдачи': '',
+                            'КатегорииТС': '',
+                            'Номер': '',
+                            'Серия': ''},
                        'СНИЛС': '169-318-152 89',
                        'Страна': 'РОССИЯ',
                        'Телефон': '79999090907',
@@ -89,126 +241,14 @@ parsed_data_1c =\
 
 def list_msg_sample_former(input_sample: str, output_result: str, parsed_data_1c: dict) -> str:
     list_msg_input_words: dict = {
-        '<Фамилия>': parsed_data_1c['personal_info']['ФИО'].split(' ')[0],
-        '<Имя>': parsed_data_1c['personal_info']['ФИО'].split(' ')[1],
-        '<Отчество>': parsed_data_1c['personal_info']['ФИО'].split(' ')[2],
-        '<Подразделение>': parsed_data_1c['job_info']['Подразделение'],
-        '<Полное наименование>': parsed_data_1c['job_info']['Организация']['НаименованиеПолное'],
-        '<Краткое наименование>': parsed_data_1c['job_info']['Организация']['НаименованиеСокращенное'],
-        '<Юридический адрес>': parsed_data_1c['job_info']['Организация']['ЮридическийАдрес'],
-        '<Фактический адрес>': parsed_data_1c['job_info']['Организация']['ФактическийАдрес'],
-        '<Дата рождения>': parsed_data_1c['document_info']['ДатаРождения'],
-
-        '<Воинское звание>': parsed_data_1c['military_info']['ВоинскоеЗвание'],
-        '<ВУС>': parsed_data_1c['military_info']['ВУС'],
-        '<Вид образования>': parsed_data_1c['personal_info']['Образование']['ВидОбразования'],
-
-        '<Должность работника>': parsed_data_1c['job_info']['Должность'],
-
-        '<Фамилия родственника>': parsed_data_1c['personal_info']['Родственники']['Фамилия'],
-        '<Имя родственника>': parsed_data_1c['personal_info']['Родственники']['Имя'],
-        '<Отчество родственника>': parsed_data_1c['personal_info']['Родственники']['Отчество'],
-        '<Дата рождения родственника>': parsed_data_1c['personal_info']['Родственники']['ДатаРождения'],
-
-        '<Адрес места проживания>': parsed_data_1c['personal_info']['Адрес_проживания'],
-
-        '<Инициалы имени, отчества ответственного за ВУ>': parsed_data_1c['military_info']['ИнициалыИмениОтчестваОтветственногоЗаВУ'],
-        '<Фамилия ответственного за ВУ>': parsed_data_1c['military_info']['ФамилияОтветсвтенногоЗаВУ'],
-
-        '<Дата приказа о приеме>': parsed_data_1c['job_info']['ДатаПриемаНаРаботу']
+        '<Пол работника>': parsed_data_1c['personal_info'].get('ПОЛ', ''),
     }
+    list_msg_input_words.update(_shared_military_registration_input_words(parsed_data_1c))
 
     try:
         wb = load_workbook(input_sample)
         ws = wb['Листок сообщения']
-
-        for row in ws.iter_rows():
-            for cell in row:
-                if cell.value and isinstance(cell.value, str):
-                    if '<Фамилия>' in cell.value:
-                        cell.value = cell.value.replace('<Фамилия>', list_msg_input_words['<Фамилия>'])
-
-                    if '<Имя>' in cell.value:
-                        cell.value = cell.value.replace('<Имя>', list_msg_input_words['<Имя>'])
-
-                    if '<Отчество>' in cell.value:
-                        cell.value = cell.value.replace('<Отчество>', list_msg_input_words['<Отчество>'])
-
-                    if '<Подразделение>' in cell.value:
-                        cell.value = cell.value.replace('<Подразделение>',
-                                                        list_msg_input_words['<Подразделение>'])
-
-                    if '<Полное наименование>' in cell.value:
-                        cell.value = cell.value.replace('<Полное наименование>',
-                                                        list_msg_input_words['<Полное наименование>'])
-
-                    if '<Краткое наименование>' in cell.value:
-                        cell.value = cell.value.replace('<Краткое наименование>',
-                                                        list_msg_input_words['<Краткое наименование>'])
-
-                    if '<Юридический адрес>' in cell.value:
-                        cell.value = cell.value.replace('<Юридический адрес>',
-                                                        list_msg_input_words['<Юридический адрес>'])
-
-                    if '<Фактический адрес>' in cell.value:
-                        cell.value = cell.value.replace('<Фактический адрес>',
-                                                        list_msg_input_words['<Фактический адрес>'])
-
-                    if '<Дата рождения>' in cell.value:
-                        cell.value = cell.value.replace('<Дата рождения>',
-                                                        list_msg_input_words['<Дата рождения>'])
-
-                    if '<Воинское звание>' in cell.value:
-                        cell.value = cell.value.replace('<Воинское звание>',
-                                                        list_msg_input_words['<Воинское звание>'])
-
-                    if '<ВУС>' in cell.value:
-                        cell.value = cell.value.replace('<ВУС>',
-                                                        list_msg_input_words['<ВУС>'])
-
-                    if '<Вид образования>' in cell.value:
-                        cell.value = cell.value.replace('<Вид образования>',
-                                                        list_msg_input_words['<Вид образования>'])
-
-                    if '<Должность работника>' in cell.value:
-                        cell.value = cell.value.replace('<Должность работника>',
-                                                        list_msg_input_words['<Должность работника>'])
-
-                    if '<Фамилия родственника>' in cell.value:
-                        cell.value = cell.value.replace('<Фамилия родственника>',
-                                                        list_msg_input_words['<Фамилия родственника>'])
-
-                    if '<Имя родственника>' in cell.value:
-                        cell.value = cell.value.replace('<Имя родственника>',
-                                                        list_msg_input_words['<Имя родственника>'])
-
-                    if '<Отчество родственника>' in cell.value:
-                        cell.value = cell.value.replace('<Отчество родственника>',
-                                                        list_msg_input_words['<Отчество родственника>'])
-
-                    if '<Дата рождения родственника>' in cell.value:
-                        cell.value = cell.value.replace('<Дата рождения родственника>',
-                                                        list_msg_input_words['<Дата рождения родственника>'])
-
-                    if '<Адрес места проживания>' in cell.value:
-                        cell.value = cell.value.replace('<Адрес места проживания>',
-                                                        list_msg_input_words['<Адрес места проживания>'])
-
-                    if '<Инициалы имени, отчества ответственного за ВУ>' in cell.value:
-                        cell.value = cell.value.replace(
-                            '<Инициалы имени, отчества ответственного за ВУ>',
-                            list_msg_input_words['<Инициалы имени, отчества ответственного за ВУ>']
-                        )
-
-                    if '<Фамилия ответственного за ВУ>' in cell.value:
-                        cell.value = cell.value.replace(
-                            '<Фамилия ответственного за ВУ>',
-                            list_msg_input_words['<Фамилия ответственного за ВУ>']
-                        )
-
-                    if '<Дата приказа о приеме>' in cell.value:
-                        cell.value = cell.value.replace('<Дата приказа о приеме>',
-                                                        list_msg_input_words['<Дата приказа о приеме>'])
+        _replace_placeholders_in_worksheet(ws, list_msg_input_words)
 
         wb.save(output_result)
         return output_result
@@ -218,136 +258,14 @@ def list_msg_sample_former(input_sample: str, output_result: str, parsed_data_1c
 
 def msg_13_sample_former(input_sample: str, output_result: str, parsed_data_1c: dict) -> str:
     list_msg_input_words: dict = {
-        '<Полное имя работника>': parsed_data_1c['personal_info']['ФИО'],
-        '<Полное наименование>': parsed_data_1c['job_info']['Организация']['НаименованиеПолное'],
-        '<Краткое наименование>': parsed_data_1c['job_info']['Организация']['НаименованиеСокращенное'],
-        '<Юридический адрес>': parsed_data_1c['job_info']['Организация']['ЮридическийАдрес'],
-        '<ИНН организации>': parsed_data_1c['job_info']['Организация']['ИНН_Орг'],
-        '<КПП организации>': parsed_data_1c['job_info']['Организация']['КПП_Орг'],
-        '<ОГРН организации>': parsed_data_1c['job_info']['Организация']['ОГРН(ИП)'],
-        '<Военкомат>': parsed_data_1c['military_info']['Военкомат'],
-
-        '<Адрес военкомата>': '<Адрес военкомата>',
-        
-        '<Дата приказа о приеме>': parsed_data_1c['job_info']['ДатаПриемаНаРаботу'],
-        '<Номер приказа о приеме>': parsed_data_1c['job_info']['ТкНомер'],
-        '<Серия документа, удостоверяющего личность>': parsed_data_1c['document_info']['Серия'],
-        '<Номер документа, удостоверяющего личность>': parsed_data_1c['document_info']['Номер'],
-        '<Орган, выдавший документ, удостоверяющего личность>': parsed_data_1c['document_info']['КемВыдан'],
-        '<Код подразделения>': parsed_data_1c['document_info']['КодПодразделения'],
-
-        '<Документ воинского учёта>': '<Документ воинского учёта>',
-        '<Серия документа воинского учёта>': '<Серия документа воинского учёта>',
-        '<Номер документа воинского учёта>': '<Номер документа воинского учёта>',
-        '<Отдел, выдавший документ воинского учёта>': '<Отдел, выдавший документ воинского учёта>',
-        '<Дата выдачи документа воинского учёта>': '<Дата выдачи документа воинского учёта>',
-
-        '<Должность руководителя>': parsed_data_1c['job_info']['Организация']['ДолжностьРуководителя'],
-        '<Инициалы имени, отчества руководителя>': f'{parsed_data_1c['job_info']['Организация']['Руководитель'].split(' ')[1][0]} {parsed_data_1c['job_info']['Организация']['Руководитель'].split(' ')[2][0]}',
-        '<Фамилия руководителя>': parsed_data_1c['job_info']['Организация']['Руководитель'].split(' ')[0]
+        '<Пол работника>': parsed_data_1c['personal_info'].get('ПОЛ', ''),
     }
+    list_msg_input_words.update(_shared_military_registration_input_words(parsed_data_1c))
 
     try:
         wb = load_workbook(input_sample)
         ws = wb['Письмо 13']
-
-        for row in ws.iter_rows():
-            for cell in row:
-                if cell.value and isinstance(cell.value, str):
-                    if '<Полное имя работника>' in cell.value:
-                        cell.value = cell.value.replace('<Полное имя работника>', list_msg_input_words['<Полное имя работника>'])
-
-                    if '<Полное наименование>' in cell.value:
-                        cell.value = cell.value.replace('<Полное наименование>', list_msg_input_words['<Полное наименование>'])
-
-                    if '<Краткое наименование>' in cell.value:
-                        cell.value = cell.value.replace('<Краткое наименование>', list_msg_input_words['<Краткое наименование>'])
-
-                    if '<Юридический адрес>' in cell.value:
-                        cell.value = cell.value.replace('<Юридический адрес>',
-                                                        list_msg_input_words['<Юридический адрес>'])
-
-                    if '<ИНН организации>' in cell.value:
-                        cell.value = cell.value.replace('<ИНН организации>',
-                                                        list_msg_input_words['<ИНН организации>'])
-
-                    if '<КПП организации>' in cell.value:
-                        cell.value = cell.value.replace('<КПП организации>',
-                                                        list_msg_input_words['<КПП организации>'])
-
-                    if '<ОГРН организации>' in cell.value:
-                        cell.value = cell.value.replace('<ОГРН организации>',
-                                                        list_msg_input_words['<ОГРН организации>'])
-
-                    if '<Фактический адрес>' in cell.value:
-                        cell.value = cell.value.replace('<Фактический адрес>',
-                                                        list_msg_input_words['<Фактический адрес>'])
-
-                    if '<Военкомат>' in cell.value:
-                        cell.value = cell.value.replace('<Военкомат>',
-                                                        list_msg_input_words['<Военкомат>'])
-
-                    if '<Адрес военкомата>' in cell.value:
-                        cell.value = cell.value.replace('<Адрес военкомата>',
-                                                        list_msg_input_words['<Адрес военкомата>'])
-
-                    if '<Дата приказа о приеме>' in cell.value:
-                        cell.value = cell.value.replace('<Дата приказа о приеме>',
-                                                        list_msg_input_words['<Дата приказа о приеме>'])
-
-                    if '<Номер приказа о приеме>' in cell.value:
-                        cell.value = cell.value.replace('<Номер приказа о приеме>',
-                                                        list_msg_input_words['<Номер приказа о приеме>'])
-
-                    if '<Серия документа, удостоверяющего личность>' in cell.value:
-                        cell.value = cell.value.replace('<Серия документа, удостоверяющего личность>',
-                                                        list_msg_input_words['<Серия документа, удостоверяющего личность>'])
-
-                    if '<Номер документа, удостоверяющего личность>' in cell.value:
-                        cell.value = cell.value.replace('<Номер документа, удостоверяющего личность>',
-                                                        list_msg_input_words['<Номер документа, удостоверяющего личность>'])
-
-                    if '<Орган, выдавший документ, удостоверяющего личность>' in cell.value:
-                        cell.value = cell.value.replace('<Орган, выдавший документ, удостоверяющего личность>',
-                                                        list_msg_input_words['<Орган, выдавший документ, удостоверяющего личность>'])
-
-                    if '<Код подразделения>' in cell.value:
-                        cell.value = cell.value.replace('<Код подразделения>',
-                                                        list_msg_input_words['<Код подразделения>'])
-
-                    if '<Документ воинского учёта>' in cell.value:
-                        cell.value = cell.value.replace('<Документ воинского учёта>',
-                                                        list_msg_input_words['<Документ воинского учёта>'])
-
-                    if '<Серия документа воинского учёта>' in cell.value:
-                        cell.value = cell.value.replace('<Серия документа воинского учёта>',
-                                                        list_msg_input_words['<Серия документа воинского учёта>'])
-
-                    if '<Номер документа воинского учёта>' in cell.value:
-                        cell.value = cell.value.replace('<Номер документа воинского учёта>',
-                                                        list_msg_input_words['<Номер документа воинского учёта>'])
-
-                    if '<Отдел, выдавший документ воинского учёта>' in cell.value:
-                        cell.value = cell.value.replace(
-                            '<Отдел, выдавший документ воинского учёта>',
-                            list_msg_input_words['<Отдел, выдавший документ воинского учёта>']
-                        )
-
-                    if '<Дата выдачи документа воинского учёта>' in cell.value:
-                        cell.value = cell.value.replace('<Дата выдачи документа воинского учёта>',
-                                                        list_msg_input_words['<Дата выдачи документа воинского учёта>'])
-
-                    if '<Должность руководителя>' in cell.value:
-                        cell.value = cell.value.replace('<Должность руководителя>',
-                                                        list_msg_input_words['<Должность руководителя>'])
-
-                    if '<Инициалы имени, отчества руководителя>' in cell.value:
-                        cell.value = cell.value.replace('<Инициалы имени, отчества руководителя>',
-                                                        list_msg_input_words['<Инициалы имени, отчества руководителя>'])
-
-                    if '<Фамилия руководителя>' in cell.value:
-                        cell.value = cell.value.replace('<Фамилия руководителя>',
-                                                        list_msg_input_words['<Фамилия руководителя>'])
+        _replace_placeholders_in_worksheet(ws, list_msg_input_words)
 
         wb.save(output_result)
         return output_result
@@ -356,6 +274,7 @@ def msg_13_sample_former(input_sample: str, output_result: str, parsed_data_1c: 
 
 
 def application_sample_former(input_sample: str, output_result: str, parsed_data_1c: dict, sheet_name: str) -> str:
+    family_input_words = _get_family_input_words(parsed_data_1c)
     application_input_words: dict = {
         '<Краткое наименование>': parsed_data_1c['job_info']['Организация']['НаименованиеСокращенное'],
         '<ИНН организации>': parsed_data_1c['job_info']['Организация']['ИНН_Орг'],
@@ -372,9 +291,9 @@ def application_sample_former(input_sample: str, output_result: str, parsed_data
         '<Инициалы имени, отчества ответственного за ВУ>': parsed_data_1c['military_info']['ИнициалыИмениОтчестваОтветственногоЗаВУ'],
         '<Фамилия ответственного за ВУ>': parsed_data_1c['military_info']['ФамилияОтветсвтенногоЗаВУ'],
 
-        '<Фамилия>': parsed_data_1c['personal_info']['ФИО'].split(' ')[0],
-        '<Имя>': parsed_data_1c['personal_info']['ФИО'].split(' ')[1],
-        '<Отчество>': parsed_data_1c['personal_info']['ФИО'].split(' ')[2],
+        '<Фамилия>': get_fio_part(parsed_data_1c['personal_info']['ФИО'], 0),
+        '<Имя>': get_fio_part(parsed_data_1c['personal_info']['ФИО'], 1),
+        '<Отчество>': get_fio_part(parsed_data_1c['personal_info']['ФИО'], 2),
 
         '<Воинское звание>': parsed_data_1c['military_info']['ВоинскоеЗвание'],
         '<Категория запаса>': parsed_data_1c['military_info']['КатегорияЗапаса'],
@@ -390,68 +309,20 @@ def application_sample_former(input_sample: str, output_result: str, parsed_data
         '<Квалификация>': parsed_data_1c['personal_info']['Образование']['Квалификация'],
         '<Специальность>': parsed_data_1c['personal_info']['Образование']['Специальность'],
         '<Период обучения по>': parsed_data_1c['personal_info']['Образование']['ПериодОбучения'],
-
+        '<Семейное положение>': parsed_data_1c['personal_info'].get('СемейноеПоложение', ''),
         '<Адрес места проживания>': parsed_data_1c['personal_info']['Адрес_проживания'],
         '<Адрес по прописке>':parsed_data_1c['personal_info']['Адрес_прописка'],
         '<Подразделение>': parsed_data_1c['job_info']['Подразделение'],
         '<Должность работника>': parsed_data_1c['job_info']['Должность'],
-        '<Инициалы имени, отчества руководителя>': f'{parsed_data_1c['job_info']['Организация']['Руководитель'].split(' ')[1][0]} {parsed_data_1c['job_info']['Организация']['Руководитель'].split(' ')[2][0]}',
-        '<Фамилия руководителя>': parsed_data_1c['job_info']['Организация']['Руководитель'].split(' ')[0]
+        '<Инициалы имени, отчества руководителя>': get_name_patronymic_initials(parsed_data_1c['job_info']['Организация']['Руководитель']),
+        '<Фамилия руководителя>': get_fio_part(parsed_data_1c['job_info']['Организация']['Руководитель'], 0)
     }
-    keys: list[str] = list(application_input_words.keys())
+    application_input_words.update(_shared_military_registration_input_words(parsed_data_1c))
 
     try:
         wb = load_workbook(input_sample)
         ws = wb[sheet_name]
-
-        for row in ws.iter_rows():
-            for cell in row:
-                if cell.value and isinstance(cell.value, str):
-                    if cell.value in keys:
-                        cell.value = cell.value.replace(cell.value, application_input_words[cell.value])
-
-                    # Обрабатываем частные случаи (по типу '<ИНН организации>/<КПП организации>' или
-                    # <Инициалы имени, отчества руководителя> <Фамилия руководителя>' если они в одной ячейке)
-
-                    if '<ИНН организации>' in cell.value:
-                        cell.value = cell.value.replace('<ИНН организации>',
-                                                        application_input_words['<ИНН организации>'])
-
-                    if '<КПП организации>' in cell.value:
-                        cell.value = cell.value.replace('<КПП организации>',
-                                                        application_input_words['<КПП организации>'])
-
-                    if '<Должность ответственного за ВУ>' in cell.value:
-                        cell.value = cell.value.replace('<Должность ответственного за ВУ>',
-                                                        application_input_words['<Должность ответственного за ВУ>'])
-
-                    if '<Инициалы имени, отчества ответственного за ВУ>' in cell.value:
-                        cell.value = cell.value.replace('<Инициалы имени, отчества ответственного за ВУ>',
-                                                        application_input_words['<Инициалы имени, отчества ответственного за ВУ>'])
-
-                    if '<Фамилия ответственного за ВУ>' in cell.value:
-                        cell.value = cell.value.replace('<Фамилия ответственного за ВУ>',
-                                                        application_input_words['<Фамилия ответственного за ВУ>'])
-
-                    if '<Квалификация>' in cell.value:
-                        cell.value = cell.value.replace('<Квалификация>',
-                                                        application_input_words['<Квалификация>'])
-
-                    if '<Специальность>' in cell.value:
-                        cell.value = cell.value.replace('<Специальность>',
-                                                        application_input_words['<Специальность>'])
-
-                    if '<Инициалы имени, отчества руководителя>' in cell.value:
-                        cell.value = cell.value.replace('<Инициалы имени, отчества руководителя>',
-                                                        application_input_words['<Инициалы имени, отчества руководителя>'])
-
-                    if '<Фамилия руководителя>' in cell.value:
-                        cell.value = cell.value.replace('<Фамилия руководителя>',
-                                                        application_input_words['<Фамилия руководителя>'])
-
-                    if '<Дата рождения>' in cell.value:
-                        cell.value = cell.value.replace('<Дата рождения>',
-                                                        application_input_words['<Дата рождения>'])
+        _replace_placeholders_in_worksheet(ws, application_input_words)
 
         wb.save(output_result)
         return output_result
@@ -476,62 +347,22 @@ def info_changes_sample_former(input_sample: str, output_result: str, parsed_dat
         '<Инициалы имени, отчества ответственного за ВУ>': parsed_data_1c['military_info']['ИнициалыИмениОтчестваОтветственногоЗаВУ'],
         '<Фамилия ответственного за ВУ>': parsed_data_1c['military_info']['ФамилияОтветсвтенногоЗаВУ'],
 
-        '<Фамилия>': parsed_data_1c['personal_info']['ФИО'].split(' ')[0],
-        '<Имя>': parsed_data_1c['personal_info']['ФИО'].split(' ')[1],
-        '<Отчество>': parsed_data_1c['personal_info']['ФИО'].split(' ')[2],
+        '<Фамилия>': get_fio_part(parsed_data_1c['personal_info']['ФИО'], 0),
+        '<Имя>': get_fio_part(parsed_data_1c['personal_info']['ФИО'], 1),
+        '<Отчество>': get_fio_part(parsed_data_1c['personal_info']['ФИО'], 2),
 
         '<Воинское звание>': parsed_data_1c['military_info']['ВоинскоеЗвание'],
 
         '<Дата рождения>': parsed_data_1c['document_info']['ДатаРождения'],
-        '<Инициалы имени, отчества руководителя>': f'{parsed_data_1c['job_info']['Организация']['Руководитель'].split(' ')[1][0]} {parsed_data_1c['job_info']['Организация']['Руководитель'].split(' ')[2][0]}',
-        '<Фамилия руководителя>': parsed_data_1c['job_info']['Организация']['Руководитель'].split(' ')[0]
+        '<Инициалы имени, отчества руководителя>': get_name_patronymic_initials(parsed_data_1c['job_info']['Организация']['Руководитель']),
+        '<Фамилия руководителя>': get_fio_part(parsed_data_1c['job_info']['Организация']['Руководитель'], 0)
     }
-    keys: list[str] = list(info_changes_input_words.keys())
+    info_changes_input_words.update(_shared_military_registration_input_words(parsed_data_1c))
 
     try:
         wb = load_workbook(input_sample)
         ws = wb['Сведения об изменениях']
-
-        for row in ws.iter_rows():
-            for cell in row:
-                if cell.value and isinstance(cell.value, str):
-                    if cell.value in keys:
-                        cell.value = cell.value.replace(cell.value, info_changes_input_words[cell.value])
-
-                    # Обрабатываем частные случаи (по типу '<ИНН организации>/<КПП организации>' или
-                    # <Инициалы имени, отчества руководителя> <Фамилия руководителя>' если они в одной ячейке)
-
-                    if '<ИНН организации>' in cell.value:
-                        cell.value = cell.value.replace('<ИНН организации>',
-                                                        info_changes_input_words['<ИНН организации>'])
-
-                    if '<КПП организации>' in cell.value:
-                        cell.value = cell.value.replace('<КПП организации>',
-                                                        info_changes_input_words['<КПП организации>'])
-
-                    if '<Должность ответственного за ВУ>' in cell.value:
-                        cell.value = cell.value.replace('<Должность ответственного за ВУ>',
-                                                        info_changes_input_words['<Должность ответственного за ВУ>'])
-
-                    if '<Инициалы имени, отчества ответственного за ВУ>' in cell.value:
-                        cell.value = cell.value.replace('<Инициалы имени, отчества ответственного за ВУ>',
-                                                        info_changes_input_words['<Инициалы имени, отчества ответственного за ВУ>'])
-
-                    if '<Фамилия ответственного за ВУ>' in cell.value:
-                        cell.value = cell.value.replace('<Фамилия ответственного за ВУ>',
-                                                        info_changes_input_words['<Фамилия ответственного за ВУ>'])
-
-                    if '<Инициалы имени, отчества руководителя>' in cell.value:
-                        cell.value = cell.value.replace('<Инициалы имени, отчества руководителя>',
-                                                        info_changes_input_words['<Инициалы имени, отчества руководителя>'])
-
-                    if '<Фамилия руководителя>' in cell.value:
-                        cell.value = cell.value.replace('<Фамилия руководителя>',
-                                                        info_changes_input_words['<Фамилия руководителя>'])
-
-                    if '<Дата рождения>' in cell.value:
-                        cell.value = cell.value.replace('<Дата рождения>',
-                                                        info_changes_input_words['<Дата рождения>'])
+        _replace_placeholders_in_worksheet(ws, info_changes_input_words)
 
         wb.save(output_result)
         return output_result
@@ -562,49 +393,22 @@ def details_sample_former(input_sample: str, output_result: str, parsed_data_1c:
         '<Фактический адрес>': parsed_data_1c['job_info']['Организация']['ФактическийАдрес'],
         '<Должность работника>': parsed_data_1c['job_info']['Должность'],
         '<Договор №>': parsed_data_1c['job_info']['ТкНомер'],
+        '<Приказ №>': parsed_data_1c['job_info'].get('НомерПриказаОПриеме', parsed_data_1c['job_info']['ТкНомер']),
         '<Дата приказа о приеме>': parsed_data_1c['job_info']['ДатаПриемаНаРаботу'],
         '<Должность руководителя>': parsed_data_1c['job_info']['Организация']['ДолжностьРуководителя'],
-        '<Инициалы имени, отчества руководителя>': f'{parsed_data_1c['job_info']['Организация']['Руководитель'].split(' ')[1][0]} {parsed_data_1c['job_info']['Организация']['Руководитель'].split(' ')[2][0]}',
-        '<Фамилия руководителя>': parsed_data_1c['job_info']['Организация']['Руководитель'].split(' ')[0],
+        '<Инициалы имени, отчества руководителя>': get_name_patronymic_initials(parsed_data_1c['job_info']['Организация']['Руководитель']),
+        '<Фамилия руководителя>': get_fio_part(parsed_data_1c['job_info']['Организация']['Руководитель'], 0),
 
         '<Должность ответственного за ВУ>': parsed_data_1c['military_info']['ДолжностьОтветственногоЗаВУ'],
         '<Инициалы имени, отчества ответственного за ВУ>': parsed_data_1c['military_info']['ИнициалыИмениОтчестваОтветственногоЗаВУ'],
         '<Фамилия ответственного за ВУ>': parsed_data_1c['military_info']['ФамилияОтветсвтенногоЗаВУ']
     }
-    keys: list[str] = list(details_input_words.keys())
+    details_input_words.update(_shared_military_registration_input_words(parsed_data_1c))
 
     try:
         wb = load_workbook(input_sample)
         ws = wb['Сведения']
-
-        for row in ws.iter_rows():
-            for cell in row:
-                if cell.value and isinstance(cell.value, str):
-                    if cell.value in keys:
-                        cell.value = cell.value.replace(cell.value, details_input_words[cell.value])
-
-                    # Обрабатываем частные случаи (по типу '<ИНН организации>/<КПП организации>' или
-                    # <Инициалы имени, отчества руководителя> <Фамилия руководителя>' если они в одной ячейке)
-
-                    if '<ИНН организации>' in cell.value:
-                        cell.value = cell.value.replace('<ИНН организации>',
-                                                        details_input_words['<ИНН организации>'])
-
-                    if '<КПП организации>' in cell.value:
-                        cell.value = cell.value.replace('<КПП организации>',
-                                                        details_input_words['<КПП организации>'])
-
-                    if '<Серия документа, удостоверяющего личность>' in cell.value:
-                        cell.value = cell.value.replace('<Серия документа, удостоверяющего личность>',
-                                                        details_input_words['<Серия документа, удостоверяющего личность>'])
-
-                    if '<Номер документа, удостоверяющего личность>' in cell.value:
-                        cell.value = cell.value.replace('<Номер документа, удостоверяющего личность>',
-                                                        details_input_words['<Номер документа, удостоверяющего личность>'])
-
-                    if '<Дата рождения>' in cell.value:
-                        cell.value = cell.value.replace('<Дата рождения>',
-                                                        details_input_words['<Дата рождения>'])
+        _replace_placeholders_in_worksheet(ws, details_input_words)
 
         wb.save(output_result)
         return output_result
@@ -629,29 +433,12 @@ def notification_sample_former(input_sample: str, output_result: str, parsed_dat
         '<Инициалы имени, отчества ответственного за ВУ>': parsed_data_1c['military_info']['ИнициалыИмениОтчестваОтветственногоЗаВУ'],
         '<Фамилия ответственного за ВУ>': parsed_data_1c['military_info']['ФамилияОтветсвтенногоЗаВУ']
     }
-
-    keys: list[str] = list(notification_input_words.keys())
+    notification_input_words.update(_shared_military_registration_input_words(parsed_data_1c))
 
     try:
         wb = load_workbook(input_sample)
         ws = wb[sheet_name]
-
-        for row in ws.iter_rows():
-            for cell in row:
-                if cell.value and isinstance(cell.value, str):
-                    if cell.value in keys:
-                        cell.value = cell.value.replace(cell.value, notification_input_words[cell.value])
-
-                    # Обрабатываем частные случаи (по типу '<ИНН организации>/<КПП организации>' или
-                    # <Инициалы имени, отчества руководителя> <Фамилия руководителя>' если они в одной ячейке)
-
-                    if '<ИНН организации>' in cell.value:
-                        cell.value = cell.value.replace('<ИНН организации>',
-                                                        notification_input_words['<ИНН организации>'])
-
-                    if '<КПП организации>' in cell.value:
-                        cell.value = cell.value.replace('<КПП организации>',
-                                                        notification_input_words['<КПП организации>'])
+        _replace_placeholders_in_worksheet(ws, notification_input_words)
 
         wb.save(output_result)
         return output_result
@@ -660,15 +447,16 @@ def notification_sample_former(input_sample: str, output_result: str, parsed_dat
 
 
 def f10_sample_former(input_sample: str, output_result: str, parsed_data_1c: dict) -> str:
+    family_input_words = _get_family_input_words(parsed_data_1c)
     f10_input_words: dict = {
         '<Полное наименование>': parsed_data_1c['job_info']['Организация']['НаименованиеПолное'],
 
         '<Инициалы имени, отчества ответственного за ВУ>': parsed_data_1c['military_info']['ИнициалыИмениОтчестваОтветственногоЗаВУ'],
         '<Фамилия ответственного за ВУ>': parsed_data_1c['military_info']['ФамилияОтветсвтенногоЗаВУ'],
 
-        '<Фамилия>': parsed_data_1c['personal_info']['ФИО'].split(' ')[0],
-        '<Имя>': parsed_data_1c['personal_info']['ФИО'].split(' ')[1],
-        '<Отчество>': parsed_data_1c['personal_info']['ФИО'].split(' ')[2],
+        '<Фамилия>': get_fio_part(parsed_data_1c['personal_info']['ФИО'], 0),
+        '<Имя>': get_fio_part(parsed_data_1c['personal_info']['ФИО'], 1),
+        '<Отчество>': get_fio_part(parsed_data_1c['personal_info']['ФИО'], 2),
         '<Дата рождения>': parsed_data_1c['document_info']['ДатаРождения'],
         '<Место рождения>': parsed_data_1c['document_info']['МестоРождения'],
 
@@ -680,12 +468,6 @@ def f10_sample_former(input_sample: str, output_result: str, parsed_data_1c: dic
         '<Номер квалификационного документа>': parsed_data_1c['personal_info']['Образование']['Номер'],
         '<Период обучения по>': parsed_data_1c['personal_info']['Образование']['ПериодОбучения'],
 
-        '<Степень родства>': parsed_data_1c['personal_info']['Родственники']['СтепеньРодства'],
-        '<Фамилия родственника>': parsed_data_1c['personal_info']['Родственники']['Фамилия'],
-        '<Имя родственника>': parsed_data_1c['personal_info']['Родственники']['Имя'],
-        '<Отчество родственника>': parsed_data_1c['personal_info']['Родственники']['Отчество'],
-        '<Дата рождения родственника>': parsed_data_1c['personal_info']['Родственники']['ДатаРождения'],
-
         '<Серия документа, удостоверяющего личность>': parsed_data_1c['document_info']['Серия'],
         '<Номер документа, удостоверяющего личность>': parsed_data_1c['document_info']['Номер'],
         '<Дата выдачи документа, удостоверяющего личность>': parsed_data_1c['document_info']['ДатаВыдачи'],
@@ -693,7 +475,8 @@ def f10_sample_former(input_sample: str, output_result: str, parsed_data_1c: dic
         '<Код подразделения>': parsed_data_1c['document_info']['КодПодразделения'],
         '<Адрес по прописке>': parsed_data_1c['personal_info']['Адрес_прописка'],
 
-        '<Дата регистрации>': '<Дата регистрации>',
+        '<Дата регистрации>': parsed_data_1c['personal_info'].get('ДатаРегистрации', ''),
+        '<Семейное положение>': parsed_data_1c['personal_info'].get('СемейноеПоложение', ''),
 
         '<Адрес места проживания>': parsed_data_1c['personal_info']['Адрес_проживания'],
         '<Мобильный телефон>': parsed_data_1c['personal_info']['Телефон'],
@@ -711,69 +494,25 @@ def f10_sample_former(input_sample: str, output_result: str, parsed_data_1c: dic
         '<Отдел, выдавший документ воинского учёта>': '<Отдел, выдавший документ воинского учёта>',
         '<Дата выдачи документа воинского учёта>': '<Дата выдачи документа воинского учёта>',
 
-        '<Номер приказа о приеме>': parsed_data_1c['job_info']['ТкНомер'],
+        '<Номер приказа о приеме>': parsed_data_1c['job_info'].get('НомерПриказаОПриеме', parsed_data_1c['job_info']['ТкНомер']),
+        '<Приказ №>': parsed_data_1c['job_info'].get('НомерПриказаОПриеме', parsed_data_1c['job_info']['ТкНомер']),
         '<Дата приказа о приеме>': parsed_data_1c['job_info']['ДатаПриемаНаРаботу'],
         '<Должность работника>': parsed_data_1c['job_info']['Должность'],
 
         '<Должность ответственного за ВУ>': parsed_data_1c['military_info']['ДолжностьОтветственногоЗаВУ'],
 
-        '<Инициалы имени, отчества>': f'{parsed_data_1c['personal_info']['ФИО'].split(' ')[1][0]} {parsed_data_1c['personal_info']['ФИО'].split(' ')[2][0]}'
+        '<Инициалы имени, отчества>': get_name_patronymic_initials(parsed_data_1c['personal_info']['ФИО']),
+        '<Водительское удостоверение:серия>': parsed_data_1c['personal_info'].get('ВодительскоеУдостоверение', {}).get('Серия', ''),
+        '<Водительское удостоверение:номер>': parsed_data_1c['personal_info'].get('ВодительскоеУдостоверение', {}).get('Номер', ''),
+        '<Водительское удостоверение:дата выдачи>': parsed_data_1c['personal_info'].get('ВодительскоеУдостоверение', {}).get('ДатаВыдачи', ''),
+        '<Водительское удостоверение:категории ТС>': parsed_data_1c['personal_info'].get('ВодительскоеУдостоверение', {}).get('КатегорииТС', '')
     }
-
-    keys: list[str] = list(f10_input_words.keys())
+    f10_input_words.update(_shared_military_registration_input_words(parsed_data_1c))
 
     try:
         wb = load_workbook(input_sample)
         ws = wb['Карточка']
-
-        for row in ws.iter_rows():
-            for cell in row:
-                if cell.value and isinstance(cell.value, str):
-                    if cell.value in keys:
-                        cell.value = cell.value.replace(cell.value, f10_input_words[cell.value])
-
-                    # Обрабатываем частные случаи (по типу '<ИНН организации>/<КПП организации>' или
-                    # <Инициалы имени, отчества руководителя> <Фамилия руководителя>' если они в одной ячейке)
-
-                    if '<Инициалы имени, отчества ответственного за ВУ>' in cell.value:
-                        cell.value = cell.value.replace('<Инициалы имени, отчества ответственного за ВУ>',
-                                                        f10_input_words['<Инициалы имени, отчества ответственного за ВУ>'])
-
-                    if '<Фамилия ответственного за ВУ>' in cell.value:
-                        cell.value = cell.value.replace('<Фамилия ответственного за ВУ>',
-                                                        f10_input_words['<Фамилия ответственного за ВУ>'])
-
-                    if '<Фамилия родственника>' in cell.value:
-                        cell.value = cell.value.replace('<Фамилия родственника>',
-                                                        f10_input_words['<Фамилия родственника>'])
-
-                    if '<Имя родственника>' in cell.value:
-                        cell.value = cell.value.replace('<Имя родственника>',
-                                                        f10_input_words['<Имя родственника>'])
-
-                    if '<Отчество родственника>' in cell.value:
-                        cell.value = cell.value.replace('<Отчество родственника>',
-                                                        f10_input_words['<Отчество родственника>'])
-
-                    if '<Дата рождения родственника>' in cell.value:
-                        cell.value = cell.value.replace('<Дата рождения родственника>',
-                                                        f10_input_words['<Дата рождения родственника>'])
-
-                    if '<Дата рождения>' in cell.value:
-                        cell.value = cell.value.replace('<Дата рождения>',
-                                                        f10_input_words['<Дата рождения>'])
-
-                    if '<Дата выдачи документа, удостоверяющего личность>' in cell.value:
-                        cell.value = cell.value.replace('<Дата выдачи документа, удостоверяющего личность>',
-                                                        f10_input_words['<Дата выдачи документа, удостоверяющего личность>'])
-
-                    if '<Серия квалификационного документа>' in cell.value:
-                        cell.value = cell.value.replace('<Серия квалификационного документа>',
-                                                        f10_input_words['<Серия квалификационного документа>'])
-
-                    if '<Номер квалификационного документа>' in cell.value:
-                        cell.value = cell.value.replace('<Номер квалификационного документа>',
-                                                        f10_input_words['<Номер квалификационного документа>'])
+        _replace_placeholders_in_worksheet(ws, f10_input_words)
 
 
         wb.save(output_result)

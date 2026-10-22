@@ -1,228 +1,90 @@
+from pathlib import Path
+
 from docx import Document
-from python_docx_replace import docx_replace, docx_get_keys
+from python_docx_replace import docx_get_keys, docx_replace
+
+from template_utils import expand_relative_month_keys, inflect_to_dative_phrase, inflect_to_genitive_phrase
 
 
-# def personal_secret_sample_former(input_sample: str, output_result: str, parsed_data_1c: dict) -> str:
-#     PERSONAL_SECRET_INPUT_WORDS: dict = {
-#         'Дата приказа о приеме': parsed_data_1c['job_info']['ДатаПриемаНаРаботу'],
-#         'Полное имя работника': parsed_data_1c['personal_info']['ФИО'],
-#         'Вид документа, удостоверяющего личность': parsed_data_1c['document_info']['ВидДокумента'],
-#         'Серия документа, удостоверяющего личность': parsed_data_1c['document_info']['Серия'],
-#         'Номер документа, удостоверяющего личность': parsed_data_1c['document_info']['Серия'],
-#         'Дата выдачи документа, удостоверяющего личность': parsed_data_1c['document_info']['ДатаВыдачи'],
-#         'Орган, выдавший документ, удостоверяющего личность': parsed_data_1c['document_info']['КемВыдан'],
-#         'Номер телефона работника': parsed_data_1c['personal_info']['Телефон'],
-#         'Адрес по прописке': parsed_data_1c['personal_info']['Адрес_прописка'],
-#         'Полное наименование':  parsed_data_1c['job_info']['Организация']['НаименованиеПолное'],
-#         'Краткое наименование': parsed_data_1c['job_info']['Организация']['НаименованиеСокращенное'],
-#         'ИНН организации': parsed_data_1c['job_info']['Организация']['ИНН_Орг'],
-#         'ОГРН организации': parsed_data_1c['job_info']['Организация']['ОГРН(ИП)'],
-#         'Должность руководителя': parsed_data_1c['job_info']['Организация']['ДолжностьРуководителя'],
-#         'Руководитель': parsed_data_1c['job_info']['Организация']['Руководитель'],
-#
-#         'Основания подписи': 'Основания подписи',
-#
-#         'Фактический адрес': parsed_data_1c['job_info']['Организация']['ФактическийАдрес'],
-#         'Банк работника': parsed_data_1c['personal_info']['БикБанка'],
-#         'Адрес банка работника': parsed_data_1c['personal_info']['АдресБанка'],
-#         'ИНН банка работника': parsed_data_1c['personal_info']['ИннБанка']
-#     }
-#
-#     try:
-#         doc = Document(input_sample)
-#
-#         paragraph_count: int = len(doc.paragraphs)
-#         table_count: int = len(doc.tables)
-#
-#         # Итерируемся по всем таблицам в документе
-#         for i in range(table_count):
-#             # Итерируемся по каждой строке
-#             for row in doc.tables[i].table.rows:
-#                 current_row = row
-#                 cell_count_of_current_row: int = len(current_row.cells)
-#
-#                 # Итерируемся по каждой ячейке
-#                 for j in range(cell_count_of_current_row):
-#                     current_cell_txt = current_row.cells[j].text
-#
-#                     if '<Банк работника>' in current_cell_txt:
-#                         update_text = current_cell_txt.replace('<Банк работника>', PERSONAL_SECRET_INPUT_WORDS['Банк_работника'])
-#
-#                         current_row.cells[j].text = update_text
-#                         current_cell_txt = update_text
-#
-#                     if '<Адрес банка работника>' in current_cell_txt:
-#                         update_text = current_cell_txt.replace('<Адрес банка работника>',
-#                                                                PERSONAL_SECRET_INPUT_WORDS['Адрес_банка_работника'])
-#                         current_row.cells[j].text = update_text
-#                         current_cell_txt = update_text
-#
-#                     if '<ИНН банка работника>' in current_cell_txt:
-#                         update_text = current_cell_txt.replace('<ИНН банка работника>',
-#                                                                PERSONAL_SECRET_INPUT_WORDS['ИНН_банка_работника'])
-#                         current_row.cells[j].text = update_text
-#                         current_cell_txt = update_text
-#
-#         for i in range(paragraph_count):
-#             current_txt = doc.paragraphs[i].text
-#
-#             if '<Дата приказа о приеме>' in current_txt:
-#                 updated_text = current_txt.replace('<Дата приказа о приеме>',
-#                                                    PERSONAL_SECRET_INPUT_WORDS['Дата_приказа_о_приеме'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#             if '<Полное имя работника>' in current_txt:
-#                 updated_text = current_txt.replace('<Полное имя работника>',
-#                                                    PERSONAL_SECRET_INPUT_WORDS['Полное_имя_работника'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#             if '<Вид документа, удостоверяющего личность>' in current_txt:
-#                 updated_text = current_txt.replace('<Вид документа, удостоверяющего личность>',
-#                                                    PERSONAL_SECRET_INPUT_WORDS['Вид_документа_удостоверяющего_личность'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#             if '<Серия документа, удостоверяющего личность>' in current_txt:
-#                 updated_text = current_txt.replace('<Серия документа, удостоверяющего личность>',
-#                                                    PERSONAL_SECRET_INPUT_WORDS['Серия_документа_удостоверяющего_личность'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#             if '<Номер документа, удостоверяющего личность>' in current_txt:
-#                 updated_text = current_txt.replace('<Номер документа, удостоверяющего личность>',
-#                                                    PERSONAL_SECRET_INPUT_WORDS['Номер_документа_удостоверяющего_личность'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#             if '<Дата выдачи документа, удостоверяющего личность>' in current_txt:
-#                 updated_text = current_txt.replace(
-#                     '<Дата выдачи документа, удостоверяющего личность>',
-#                     PERSONAL_SECRET_INPUT_WORDS['Дата_выдачи_документа_удостоверяющего_личность'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#             if '<Орган, выдавший документ, удостоверяющего личность>' in current_txt:
-#                 updated_text = current_txt.replace(
-#                     '<Орган, выдавший документ, удостоверяющего личность>',
-#                     PERSONAL_SECRET_INPUT_WORDS['Орган_выдавший_документ_удостоверяющего_личность'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#             if '<Номер телефона работника>' in current_txt:
-#                 updated_text = current_txt.replace('<Номер телефона работника>',
-#                                                    PERSONAL_SECRET_INPUT_WORDS['Номер_телефона_работника'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#             if '<Адрес по прописке>' in current_txt:
-#                 updated_text = current_txt.replace('<Адрес по прописке>',
-#                                                    PERSONAL_SECRET_INPUT_WORDS['Адрес_по_прописке'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#             if '<Полное наименование>' in current_txt:
-#                 updated_text = current_txt.replace('<Полное наименование>',
-#                                                    PERSONAL_SECRET_INPUT_WORDS['Полное_наименование'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#             if '<Краткое наименование>' in current_txt:
-#                 updated_text = current_txt.replace('<Краткое наименование>',
-#                                                    PERSONAL_SECRET_INPUT_WORDS['Краткое_наименование'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#             if '<ИНН организации>' in current_txt:
-#                 updated_text = current_txt.replace('<ИНН организации>',
-#                                                    PERSONAL_SECRET_INPUT_WORDS['ИНН_организации'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#             if '<ОГРН организации>' in current_txt:
-#                 updated_text = current_txt.replace('<ОГРН организации>',
-#                                                    PERSONAL_SECRET_INPUT_WORDS['ОГРН_организации'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#             if '<Должность руководителя>' in current_txt:
-#                 updated_text = current_txt.replace('<Должность руководителя>',
-#                                                    PERSONAL_SECRET_INPUT_WORDS['Должность_руководителя'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#             if '<Руководитель>' in current_txt:
-#                 updated_text = current_txt.replace('<Руководитель>',
-#                                                    PERSONAL_SECRET_INPUT_WORDS['Руководитель'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#             if '<Основания подписи>' in current_txt:
-#                 updated_text = current_txt.replace('<Основания подписи>',
-#                                                    PERSONAL_SECRET_INPUT_WORDS['Основания_подписи'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#             if '<Фактический адрес>' in current_txt:
-#                 updated_text = current_txt.replace('<Фактический адрес>',
-#                                                    PERSONAL_SECRET_INPUT_WORDS['Фактический_адрес'])
-#                 doc.paragraphs[i].text = updated_text
-#                 current_txt = updated_text
-#
-#         doc.save(output_result)
-#         return f'Файл успешно сформирован. Сохранен в {output_result}'
-#
-#     except Exception as e:
-#         return f'Ошибка во время формирования файла: {e}'
+def _build_full_org_name_cases(org_info: dict, leader_name: str) -> tuple[str, str]:
+    full_name = org_info["\u041d\u0430\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u0438\u0435\u041f\u043e\u043b\u043d\u043e\u0435"]
+    ip_prefix = "\u0418\u043d\u0434\u0438\u0432\u0438\u0434\u0443\u0430\u043b\u044c\u043d\u044b\u0439 \u043f\u0440\u0435\u0434\u043f\u0440\u0438\u043d\u0438\u043c\u0430\u0442\u0435\u043b\u044c "
+    leader_base_name = "\u0420\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c"
+    full_org_base_name = "\u041f\u043e\u043b\u043d\u043e\u0435 \u043d\u0430\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u0438\u0435"
+
+    if isinstance(full_name, str) and full_name.startswith(ip_prefix) and leader_name:
+        dative_prefix = inflect_to_dative_phrase(ip_prefix.strip())
+        dative_leader = inflect_to_dative_phrase(leader_name, leader_base_name)
+        genitive_prefix = inflect_to_genitive_phrase(ip_prefix.strip())
+        genitive_leader = inflect_to_genitive_phrase(leader_name, leader_base_name)
+        return (
+            f"{dative_prefix} {dative_leader}",
+            f"{genitive_prefix} {genitive_leader}",
+        )
+
+    return (
+        inflect_to_dative_phrase(full_name, full_org_base_name),
+        inflect_to_genitive_phrase(full_name, full_org_base_name),
+    )
 
 
 def personal_secret_sample_former(input_sample: str, output_result: str, parsed_data_1c: dict) -> str:
-    personal_secret_input_words: dict = {
-        'Дата приказа о приеме': parsed_data_1c['job_info']['ДатаПриемаНаРаботу'],
-        'Полное имя работника': parsed_data_1c['personal_info']['ФИО'],
-        'Вид документа, удостоверяющего личность': parsed_data_1c['document_info']['ВидДокумента'],
-        'Серия документа, удостоверяющего личность': parsed_data_1c['document_info']['Серия'],
-        'Номер документа, удостоверяющего личность': parsed_data_1c['document_info']['Серия'],
-        'Дата выдачи документа, удостоверяющего личность': parsed_data_1c['document_info']['ДатаВыдачи'],
-        'Орган, выдавший документ, удостоверяющего личность': parsed_data_1c['document_info']['КемВыдан'],
-        'Номер телефона работника': parsed_data_1c['personal_info']['Телефон'],
-        'Адрес по прописке': parsed_data_1c['personal_info']['Адрес_прописка'],
-        'Полное наименование':  parsed_data_1c['job_info']['Организация']['НаименованиеПолное'],
-        'Краткое наименование': parsed_data_1c['job_info']['Организация']['НаименованиеСокращенное'],
-        'ИНН организации': parsed_data_1c['job_info']['Организация']['ИНН_Орг'],
-        'ОГРН организации': parsed_data_1c['job_info']['Организация']['ОГРН(ИП)'],
-        'Должность руководителя': parsed_data_1c['job_info']['Организация']['ДолжностьРуководителя'],
-        'Руководитель': parsed_data_1c['job_info']['Организация']['Руководитель'],
+    org_info = parsed_data_1c["job_info"]["\u041e\u0440\u0433\u0430\u043d\u0438\u0437\u0430\u0446\u0438\u044f"]
+    job_info = parsed_data_1c["job_info"]
+    personal_info = parsed_data_1c["personal_info"]
+    document_info = parsed_data_1c["document_info"]
 
-        'Основания подписи': 'Основания подписи',
+    leader_name = org_info["\u0420\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c"]
+    full_name_dative, full_name_genitive = _build_full_org_name_cases(org_info, leader_name)
 
-        'Фактический адрес': parsed_data_1c['job_info']['Организация']['ФактическийАдрес'],
-        'Банк работника': parsed_data_1c['personal_info']['БикБанка'],
-        'Адрес банка работника': parsed_data_1c['personal_info']['АдресБанка'],
-        'ИНН банка работника': parsed_data_1c['personal_info']['ИннБанка']
+    personal_secret_input_words = {
+        "\u0414\u0430\u0442\u0430 \u043f\u0440\u0438\u043a\u0430\u0437\u0430 \u043e \u043f\u0440\u0438\u0435\u043c\u0435": job_info["\u0414\u0430\u0442\u0430\u041f\u0440\u0438\u0435\u043c\u0430\u041d\u0430\u0420\u0430\u0431\u043e\u0442\u0443"],
+        "\u041f\u043e\u043b\u043d\u043e\u0435 \u0438\u043c\u044f \u0440\u0430\u0431\u043e\u0442\u043d\u0438\u043a\u0430": personal_info["\u0424\u0418\u041e"],
+        "\u0412\u0438\u0434 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430, \u0443\u0434\u043e\u0441\u0442\u043e\u0432\u0435\u0440\u044f\u044e\u0449\u0435\u0433\u043e \u043b\u0438\u0447\u043d\u043e\u0441\u0442\u044c": document_info["\u0412\u0438\u0434\u0414\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430"],
+        "\u0421\u0435\u0440\u0438\u044f \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430, \u0443\u0434\u043e\u0441\u0442\u043e\u0432\u0435\u0440\u044f\u044e\u0449\u0435\u0433\u043e \u043b\u0438\u0447\u043d\u043e\u0441\u0442\u044c": document_info["\u0421\u0435\u0440\u0438\u044f"],
+        "\u041d\u043e\u043c\u0435\u0440 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430, \u0443\u0434\u043e\u0441\u0442\u043e\u0432\u0435\u0440\u044f\u044e\u0449\u0435\u0433\u043e \u043b\u0438\u0447\u043d\u043e\u0441\u0442\u044c": document_info["\u041d\u043e\u043c\u0435\u0440"],
+        "\u0414\u0430\u0442\u0430 \u0432\u044b\u0434\u0430\u0447\u0438 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430, \u0443\u0434\u043e\u0441\u0442\u043e\u0432\u0435\u0440\u044f\u044e\u0449\u0435\u0433\u043e \u043b\u0438\u0447\u043d\u043e\u0441\u0442\u044c": document_info["\u0414\u0430\u0442\u0430\u0412\u044b\u0434\u0430\u0447\u0438"],
+        "\u041e\u0440\u0433\u0430\u043d, \u0432\u044b\u0434\u0430\u0432\u0448\u0438\u0439 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442, \u0443\u0434\u043e\u0441\u0442\u043e\u0432\u0435\u0440\u044f\u044e\u0449\u0435\u0433\u043e \u043b\u0438\u0447\u043d\u043e\u0441\u0442\u044c": document_info["\u041a\u0435\u043c\u0412\u044b\u0434\u0430\u043d"],
+        "\u041d\u043e\u043c\u0435\u0440 \u0442\u0435\u043b\u0435\u0444\u043e\u043d\u0430 \u0440\u0430\u0431\u043e\u0442\u043d\u0438\u043a\u0430": personal_info["\u0422\u0435\u043b\u0435\u0444\u043e\u043d"],
+        "\u0410\u0434\u0440\u0435\u0441 \u043f\u043e \u043f\u0440\u043e\u043f\u0438\u0441\u043a\u0435": personal_info["\u0410\u0434\u0440\u0435\u0441_\u043f\u0440\u043e\u043f\u0438\u0441\u043a\u0430"],
+        "\u041f\u043e\u043b\u043d\u043e\u0435 \u043d\u0430\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u0438\u0435": org_info["\u041d\u0430\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u0438\u0435\u041f\u043e\u043b\u043d\u043e\u0435"],
+        "\u041f\u043e\u043b\u043d\u043e\u0435 \u043d\u0430\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u0438\u0435+\u0414\u041f": full_name_dative,
+        "\u041f\u043e\u043b\u043d\u043e\u0435 \u043d\u0430\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u0438\u0435+\u0420\u041f": full_name_genitive,
+        "\u041a\u0440\u0430\u0442\u043a\u043e\u0435 \u043d\u0430\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u0438\u0435": org_info["\u041d\u0430\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u0438\u0435\u0421\u043e\u043a\u0440\u0430\u0449\u0435\u043d\u043d\u043e\u0435"],
+        "\u0418\u041d\u041d \u043e\u0440\u0433\u0430\u043d\u0438\u0437\u0430\u0446\u0438\u0438": org_info["\u0418\u041d\u041d_\u041e\u0440\u0433"],
+        "\u041e\u0413\u0420\u041d \u043e\u0440\u0433\u0430\u043d\u0438\u0437\u0430\u0446\u0438\u0438": org_info["\u041e\u0413\u0420\u041d(\u0418\u041f)"],
+        "\u0414\u043e\u043b\u0436\u043d\u043e\u0441\u0442\u044c \u0440\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f": org_info["\u0414\u043e\u043b\u0436\u043d\u043e\u0441\u0442\u044c\u0420\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f"],
+        "\u0420\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c": leader_name,
+        "\u0420\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c+\u0414\u041f": inflect_to_dative_phrase(leader_name, "\u0420\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c"),
+        "\u0420\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f+\u0414\u041f": inflect_to_dative_phrase(leader_name, "\u0420\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c"),
+        "\u0420\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c+\u0420\u041f": inflect_to_genitive_phrase(leader_name, "\u0420\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c"),
+        "\u0420\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f+\u0420\u041f": inflect_to_genitive_phrase(leader_name, "\u0420\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c"),
+        "\u041e\u0441\u043d\u043e\u0432\u0430\u043d\u0438\u0435 \u043f\u043e\u0434\u043f\u0438\u0441\u0438": job_info.get("\u041e\u0441\u043d\u043e\u0432\u0430\u043d\u0438\u0435\u041f\u043e\u0434\u043f\u0438\u0441\u0438", ""),
+        "\u041e\u0441\u043d\u043e\u0432\u0430\u043d\u0438\u044f \u043f\u043e\u0434\u043f\u0438\u0441\u0438": job_info.get("\u041e\u0441\u043d\u043e\u0432\u0430\u043d\u0438\u0435\u041f\u043e\u0434\u043f\u0438\u0441\u0438", ""),
+        "\u0424\u0430\u043a\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0439 \u0430\u0434\u0440\u0435\u0441": org_info["\u0424\u0430\u043a\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0439\u0410\u0434\u0440\u0435\u0441"],
+        "\u0411\u0430\u043d\u043a \u0440\u0430\u0431\u043e\u0442\u043d\u0438\u043a\u0430": personal_info["\u0411\u0430\u043d\u043a"],
+        "\u0410\u0434\u0440\u0435\u0441 \u0431\u0430\u043d\u043a\u0430 \u0440\u0430\u0431\u043e\u0442\u043d\u0438\u043a\u0430": personal_info["\u0410\u0434\u0440\u0435\u0441\u0411\u0430\u043d\u043a\u0430"],
+        "\u0418\u041d\u041d \u0431\u0430\u043d\u043a\u0430 \u0440\u0430\u0431\u043e\u0442\u043d\u0438\u043a\u0430": personal_info["\u0418\u043d\u043d\u0411\u0430\u043d\u043a\u0430"],
     }
 
     try:
         doc = Document(input_sample)
-        keys = docx_get_keys(doc, pattern='<>')
-        print(keys)
-        docx_replace(doc, '<>', **personal_secret_input_words)
-
+        keys = docx_get_keys(doc, pattern="<>")
+        print("=== PERSONAL SECRET DEBUG START ===")
+        print(f"template_path: {input_sample}")
+        print(f"template_name: {Path(input_sample).name}")
+        print(f"keys: {sorted(keys)}")
+        print(f"full_name_raw: {org_info.get('НаименованиеПолное')}")
+        print(f"full_name_dative: {full_name_dative}")
+        print(f"full_name_genitive: {full_name_genitive}")
+        print(f"leader_raw: {leader_name}")
+        print(f"leader_genitive: {personal_secret_input_words.get('Руководитель+РП')}")
+        print(f"leader_genitive_alias: {personal_secret_input_words.get('Руководителя+РП')}")
+        print(f"leader_dative: {personal_secret_input_words.get('Руководитель+ДП')}")
+        print(f"leader_dative_alias: {personal_secret_input_words.get('Руководителя+ДП')}")
+        print("=== PERSONAL SECRET DEBUG END ===")
+        docx_replace(doc, "<>", **expand_relative_month_keys(personal_secret_input_words, keys))
         doc.save(output_result)
         return output_result
-
     except Exception as e:
-        return f'Ошибка во время формирования файла: {e}'
-
-
-if __name__ == '__main__':
-    result: str = personal_secret_sample_former(
-        input_sample='input_sample/Согласие на распространение персональных данных НОВОЕ.docx',
-        output_result='output_result/output_Согласие на распространение персональных данных НОВОЕ.docx'
-    )
-
-    result_2: str = personal_secret_sample_former(
-        input_sample='input_sample/Согласие на обработку персональных данных НОВОЕ.docx',
-        output_result='output_result/output_Согласие на обработку персональных данных НОВОЕ.docx'
-    )
+        return f"\u041e\u0448\u0438\u0431\u043a\u0430 \u0432\u043e \u0432\u0440\u0435\u043c\u044f \u0444\u043e\u0440\u043c\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u044f \u0444\u0430\u0439\u043b\u0430: {e}"

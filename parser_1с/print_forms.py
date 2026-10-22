@@ -1,7 +1,10 @@
 import os
 import shutil
+import json
+import time
 
 import win32com.client
+from pypdf import PdfReader, PdfWriter
 
 
 def _split_env_names(env_name: str, default_names: list[str]) -> list[str]:
@@ -40,10 +43,208 @@ SEDO_PRINT_FORM_NAMES = _split_env_names(
     ],
 )
 
+DEFAULT_EXTERNAL_PROCESSOR_PATH = os.getenv(
+    "ONEC_HR_EXTERNAL_PROCESSOR_PATH",
+    os.path.join(os.path.dirname(__file__), "export_hr_docs_1c.epf"),
+)
+EXTERNAL_PROCESSOR_METHODS = _split_env_names(
+    "ONEC_HR_EXTERNAL_PROCESSOR_METHODS",
+    [
+        os.getenv("ONEC_HR_EXTERNAL_PROCESSOR_METHOD", "СформироватьКадровыеДокументыПоФИОJSON"),
+        "СформироватьКадровыеДокументыПоФИОJSON",
+        "СформироватьКадровыеДокументыПоФИО",
+    ],
+)
+
 
 def connect_1c(base_1c: str, username: str, pswd: str):
     conn_string = rf'{base_1c}Usr="{username}";Pwd="{pswd}";'
     return win32com.client.Dispatch("V83.COMConnector").Connect(conn_string)
+
+
+def _create_external_processor(connector, processor_path: str):
+    errors: list[str] = []
+    normalized_path = os.path.abspath(processor_path)
+
+    if not os.path.isfile(normalized_path):
+        return None, [f"Файл внешней обработки не найден: {normalized_path}"]
+
+    manager_names = ("ВнешниеОбработки", "ExternalDataProcessors")
+    create_methods = ("Создать", "Create")
+    argument_variants = ((normalized_path, False), (normalized_path,))
+
+    for manager_name in manager_names:
+        try:
+            manager = getattr(connector, manager_name)
+        except Exception as error:
+            errors.append(f"{manager_name}: {error}")
+            continue
+
+        for create_method in create_methods:
+            try:
+                creator = getattr(manager, create_method)
+            except Exception as error:
+                errors.append(f"{manager_name}.{create_method}: {error}")
+                continue
+
+            for args in argument_variants:
+                try:
+                    return creator(*args), []
+                except Exception as error:
+                    errors.append(f"{manager_name}.{create_method}{args}: {error}")
+
+    return None, errors
+
+
+def _extract_result_value(result, key: str):
+    if result is None:
+        return None
+
+    if isinstance(result, dict):
+        return result.get(key)
+
+    try:
+        return getattr(result, key)
+    except Exception:
+        pass
+
+    for method_name in ("Get", "Получить"):
+        try:
+            method = getattr(result, method_name)
+            return method(key)
+        except Exception:
+            continue
+
+    return None
+
+
+def _normalize_external_result(raw_result):
+    if isinstance(raw_result, str):
+        stripped = raw_result.strip()
+        if stripped.startswith("{") and stripped.endswith("}"):
+            try:
+                parsed = json.loads(stripped)
+                if isinstance(parsed, dict) and "#value" in parsed and isinstance(parsed["#value"], list):
+                    normalized = {}
+                    for item in parsed["#value"]:
+                        if not isinstance(item, dict):
+                            continue
+                        key_meta = item.get("name", {})
+                        value_meta = item.get("Value", {})
+                        key = key_meta.get("#value") if isinstance(key_meta, dict) else None
+                        value = value_meta.get("#value") if isinstance(value_meta, dict) else None
+                        if key is not None:
+                            normalized[key] = value
+                    return normalized
+                return parsed
+            except Exception:
+                return {"success": False, "log": raw_result, "order_error": raw_result, "sedo_error": raw_result}
+        return {"success": False, "log": raw_result, "order_error": raw_result, "sedo_error": raw_result}
+
+    return {
+        "success": bool(_extract_result_value(raw_result, "success")),
+        "order_path": _extract_result_value(raw_result, "order_path") or "",
+        "sedo_path": _extract_result_value(raw_result, "sedo_path") or "",
+        "order_error": _extract_result_value(raw_result, "order_error") or "",
+        "sedo_error": _extract_result_value(raw_result, "sedo_error") or "",
+        "log": _extract_result_value(raw_result, "log") or "",
+    }
+
+
+def _try_external_processor_hr_docs(connector, fio: str, output_dir: str) -> dict[str, str] | None:
+    processor, create_errors = _create_external_processor(connector, DEFAULT_EXTERNAL_PROCESSOR_PATH)
+    if processor is None:
+        return {
+            "order": "Ошибка вызова внешней обработки 1С: " + " | ".join(create_errors[:10]),
+            "sedo": "Ошибка вызова внешней обработки 1С: " + " | ".join(create_errors[:10]),
+        }
+
+    call_errors: list[str] = []
+    for method_name in EXTERNAL_PROCESSOR_METHODS:
+        try:
+            method = getattr(processor, method_name)
+        except Exception as error:
+            call_errors.append(f"{method_name}: {error}")
+            continue
+
+        for args in ((fio, output_dir), (output_dir, fio)):
+            try:
+                raw_result = method(*args)
+                parsed_result = _normalize_external_result(raw_result)
+                external_log = str(parsed_result.get("log") or "").strip()
+                order_value = parsed_result.get("order_path") or parsed_result.get("order_error") or ""
+                sedo_value = parsed_result.get("sedo_path") or parsed_result.get("sedo_error") or ""
+
+                if external_log:
+                    print("=== 1C HR DOCS LOG START ===")
+                    print(external_log)
+                    print("=== 1C HR DOCS LOG END ===")
+                    if order_value and not _is_existing_file_path(order_value):
+                        order_value = f"{order_value}\nЛог 1С:\n{external_log}"
+                    if sedo_value and not _is_existing_file_path(sedo_value):
+                        sedo_value = f"{sedo_value}\nЛог 1С:\n{external_log}"
+
+                return {
+                    "order": order_value,
+                    "sedo": sedo_value,
+                }
+            except Exception as error:
+                call_errors.append(f"{method_name}{args}: {error}")
+
+    return {
+        "order": "Ошибка вызова внешней обработки 1С: " + " | ".join(call_errors[:10]),
+        "sedo": "Ошибка вызова внешней обработки 1С: " + " | ".join(call_errors[:10]),
+    }
+
+
+def _is_existing_file_path(value: str) -> bool:
+    return bool(value) and os.path.isfile(value)
+
+
+def _keep_only_first_pdf_page(file_path: str) -> str:
+    if not _is_existing_file_path(file_path) or not str(file_path).lower().endswith(".pdf"):
+        return file_path
+
+    try:
+        reader = PdfReader(file_path)
+        if len(reader.pages) <= 1:
+            return file_path
+
+        writer = PdfWriter()
+        writer.add_page(reader.pages[0])
+
+        temp_path = f"{file_path}.tmp"
+        with open(temp_path, "wb") as target_file:
+            writer.write(target_file)
+
+        os.replace(temp_path, file_path)
+        return file_path
+    except Exception as error:
+        print(f"Не удалось обрезать PDF до первой страницы: {file_path}: {error}")
+        return file_path
+
+
+def _should_return_external_result(external_result: dict[str, str] | None) -> bool:
+    if not external_result:
+        return False
+
+    if _is_existing_file_path(external_result.get("order", "")) or _is_existing_file_path(external_result.get("sedo", "")):
+        return True
+
+    external_errors = " ".join(
+        [
+            str(external_result.get("order", "")),
+            str(external_result.get("sedo", "")),
+        ]
+    ).lower()
+
+    if "внешней обработки 1с" in external_errors:
+        return True
+
+    if DEFAULT_EXTERNAL_PROCESSOR_PATH and not os.path.isfile(os.path.abspath(DEFAULT_EXTERNAL_PROCESSOR_PATH)):
+        return True
+
+    return False
 
 
 def get_hire_doc_ref(connector, fio: str):
@@ -87,6 +288,7 @@ def _save_print_result(result, output_path: str) -> bool:
 
         try:
             method(output_path)
+            time.sleep(5)
             return os.path.isfile(output_path)
         except Exception:
             continue
@@ -392,16 +594,51 @@ def form_order_and_sedo_docs_from_1c(fio: str, base_1c: str, username: str, pswd
     os.makedirs(output_dir, exist_ok=True)
 
     safe_fio = "_".join(fio.split())
-    order_path = os.path.join(output_dir, f"output_Приказ_о_приеме_{safe_fio}.mxl")
-    sedo_path = os.path.join(output_dir, f"output_СЭДО_{safe_fio}.mxl")
+    order_path = os.path.join(output_dir, f"output_Приказ_о_приеме_{safe_fio}.pdf")
+    sedo_path = os.path.join(output_dir, f"output_СЭДО_{safe_fio}.pdf")
+
+    if DEFAULT_EXTERNAL_PROCESSOR_PATH:
+        external_result = _try_external_processor_hr_docs(connector=connector, fio=fio, output_dir=output_dir)
+        if _should_return_external_result(external_result):
+            order_ready = external_result.get("order", "") if external_result else ""
+            sedo_ready = external_result.get("sedo", "") if external_result else ""
+            order_result = order_ready if _is_existing_file_path(order_ready) else ""
+            sedo_result = sedo_ready if _is_existing_file_path(sedo_ready) else ""
+
+            if not order_result:
+                order_result = _render_print_form(
+                    connector=connector,
+                    doc_ref=hire_doc_ref,
+                    print_form_names=ORDER_PRINT_FORM_NAMES,
+                    output_path=order_path,
+                )
+            if _is_existing_file_path(order_result):
+                order_result = _keep_only_first_pdf_page(order_result)
+
+            if not sedo_result:
+                sedo_result = _render_print_form(
+                    connector=connector,
+                    doc_ref=hire_doc_ref,
+                    print_form_names=SEDO_PRINT_FORM_NAMES,
+                    output_path=sedo_path,
+                )
+
+            return {
+                "order": order_result or order_ready or "",
+                "sedo": sedo_result or sedo_ready or "",
+            }
+
+    order_result = _render_print_form(
+        connector=connector,
+        doc_ref=hire_doc_ref,
+        print_form_names=ORDER_PRINT_FORM_NAMES,
+        output_path=order_path,
+    )
+    if _is_existing_file_path(order_result):
+        order_result = _keep_only_first_pdf_page(order_result)
 
     return {
-        "order": _render_print_form(
-            connector=connector,
-            doc_ref=hire_doc_ref,
-            print_form_names=ORDER_PRINT_FORM_NAMES,
-            output_path=order_path,
-        ),
+        "order": order_result,
         "sedo": _render_print_form(
             connector=connector,
             doc_ref=hire_doc_ref,

@@ -1,6 +1,8 @@
 from docx import Document
 from python_docx_replace import docx_replace, docx_get_keys
 
+from template_utils import expand_relative_month_keys
+
 
 # def zp_align_sample_former(input_sample: str, output_result: str, parsed_data_1c: dict) -> str:
 #     ZP_ALIGN_INPUT_WORDS: dict = {
@@ -122,7 +124,7 @@ def zp_align_sample_former(input_sample: str, output_result: str, parsed_data_1c
         doc = Document(input_sample)
         keys = docx_get_keys(doc, pattern='<>')
         print(keys)
-        docx_replace(doc, '<>', **zp_align_input_words)
+        docx_replace(doc, '<>', **expand_relative_month_keys(zp_align_input_words, keys))
 
         doc.save(output_result)
         return output_result
